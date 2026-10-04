@@ -1,0 +1,28 @@
+/**
+ * The bridges. Kept deliberately small: Harness's web UI does the work, and each
+ * bridge here is a capability the browser cannot provide on its own.
+ */
+
+const { contextBridge, ipcRenderer } = require('electron')
+
+/**
+ * Harness's client switches on its native macOS layout from this marker, and it
+ * reads it as it mounts — so it has to be set before any page script runs.
+ */
+function markPlatform() {
+  const root = document.documentElement
+  if (!root) return
+  if (process.platform === 'darwin') root.dataset.platform = 'darwin'
+}
+
+markPlatform()
+document.addEventListener('DOMContentLoaded', markPlatform, { once: true })
+
+/**
+ * The native directory picker. Harness's `host-directory-picker-auto` keeps the
+ * stock picker row active when a native backend is present, so exposing this is
+ * what makes "add a workspace folder" use the real macOS/Windows dialog.
+ */
+contextBridge.exposeInMainWorld('__DSH_DIRECTORY_PICKER__', {
+  pick: () => ipcRenderer.invoke('gnts:pick-directory'),
+})

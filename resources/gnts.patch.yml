@@ -1,0 +1,7 @@
+# gnts.dev patch layer — applied after every bundle layer in the profile.
+#
+# Deliberately empty. A patch row is compatibility debt: each one has an upgrade
+# cost and needs a recorded upstream version, the problem it solves, and the
+# condition under which it can be removed. We add rows only when a seam is
+# genuinely missing, and we prefer a plugin.
+[]

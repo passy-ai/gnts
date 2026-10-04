@@ -1,0 +1,22 @@
+{
+  "name": "gnts-dev",
+  "productName": "gnts.dev",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Our desktop layer for DeepSeek Harness.",
+  "type": "module",
+  "main": "src/main/index.mjs",
+  "scripts": {
+    "start": "electron .",
+    "package:mac": "electron-builder --mac --config electron-builder.config.mjs",
+    "package:win": "electron-builder --win --config electron-builder.config.mjs",
+    "package:dir": "electron-builder --dir --config electron-builder.config.mjs"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh": "0.2.0-rc.2"
+  },
+  "devDependencies": {
+    "electron": "43.0.0",
+    "electron-builder": "26.15.3"
+  }
+}
