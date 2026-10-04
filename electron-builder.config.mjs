@@ -12,6 +12,7 @@ export default {
     { from: 'resources/harness-node-entry.mjs', to: 'harness-node-entry.mjs' },
     { from: 'resources/host-module-fallback.mjs', to: 'host-module-fallback.mjs' },
     { from: 'resources/gnts.patch.yml', to: 'gnts.patch.yml' },
+    { from: 'resources/gateway.cjs', to: 'gateway.cjs' },
   ],
   asar: true,
   npmRebuild: false,

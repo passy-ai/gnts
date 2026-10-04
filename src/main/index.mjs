@@ -6,6 +6,10 @@
  */
 
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { spawn } from 'node:child_process'
+import { createHash, randomBytes } from 'node:crypto'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { session } from 'electron'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { HarnessRuntime } from './harness.mjs'
@@ -19,6 +23,96 @@ const resourcesPath = app.isPackaged ? process.resourcesPath : join(app.getAppPa
 let runtime
 let window
 let allowedOrigin
+let gateway
+
+/** The gateway's fixed port — the tunnel's ingress target, so it must not move. */
+const GATEWAY_PORT = 8080
+
+/** Code alphabet and length the gateway redeems. */
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+
+/**
+ * Pair this app with its own gateway, silently.
+ *
+ * The gateway gates everything behind a paired-device session cookie, and its
+ * unpaired surface is the QR/code pairing page. The desktop app should never see
+ * that page: it mints a code the same way the CLI does and redeems it over
+ * loopback, then stores the resulting cookie in the window's session — so the app
+ * is simply another paired device, with nothing to scan and nothing to type. The
+ * cookie is durable, so this happens once, not on every launch.
+ * @param {string} origin - the gateway's loopback origin.
+ * @param {{ dshHome: string }} paths
+ * @returns {Promise<boolean>}
+ */
+async function pairSelf(origin, paths) {
+  const cookieUrl = `${origin}/`
+  const has = async () => (await session.defaultSession.cookies.get({ url: cookieUrl }))
+    .some((cookie) => cookie.name === 'dsh_session')
+  if (await has()) return true
+
+  const codesDir = join(app.getPath('userData'), 'remote', 'codes')
+  mkdirSync(codesDir, { recursive: true, mode: 0o700 })
+  let code = ''
+  for (const byte of randomBytes(8)) code += CODE_ALPHABET[byte % CODE_ALPHABET.length]
+  writeFileSync(join(codesDir, `${createHash('sha256').update(code).digest('hex')}.code`),
+    String(Date.now() + 10 * 60 * 1000), { mode: 0o600 })
+
+  let response
+  try {
+    response = await fetch(`${origin}/login`, {
+      method: 'POST',
+      redirect: 'manual',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ code, label: 'gnts.dev desktop' }).toString(),
+    })
+  } catch (error) {
+    runtime?.note(`[gnts] pairing request failed: ${String(error)}`)
+    return false
+  }
+
+  const headers = typeof response.headers.getSetCookie === 'function' ? response.headers.getSetCookie() : []
+  for (const header of headers) {
+    const parts = String(header).split(';')
+    const eq = parts[0].indexOf('=')
+    if (eq <= 0) continue
+    const name = parts[0].slice(0, eq).trim()
+    const value = parts[0].slice(eq + 1).trim()
+    // Honour Max-Age: without an expiry this is a session cookie that dies with
+    // the app, so every launch would pair a new device.
+    let expirationDate
+    for (const attribute of parts.slice(1)) {
+      const match = /^\s*max-age\s*=\s*(\d+)\s*$/i.exec(attribute)
+      if (match) expirationDate = Math.floor(Date.now() / 1000) + Number(match[1])
+    }
+    try {
+      await session.defaultSession.cookies.set({ url: cookieUrl, name, value, path: '/', httpOnly: true, sameSite: 'lax', expirationDate })
+    } catch (error) {
+      runtime?.note(`[gnts] could not store ${name}: ${String(error)}`)
+    }
+  }
+  const paired = await has()
+  runtime?.note(paired ? '[gnts] paired with the gateway as "gnts.dev desktop"' : `[gnts] pairing returned ${response.status} with ${headers.length} cookie(s)`)
+  return paired
+}
+
+/**
+ * Poll until a URL answers, or give up.
+ * @param {string} url
+ * @param {number} timeoutMs
+ * @returns {Promise<boolean>}
+ */
+async function waitForHttp(url, timeoutMs) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    try {
+      await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(1000) })
+      return true
+    } catch {
+      await new Promise((r) => setTimeout(r, 250))
+    }
+  }
+  return false
+}
 
 /**
  * A window that can only ever show the local Harness.
@@ -109,6 +203,35 @@ async function boot() {
 
   try {
     const { url, token } = await runtime.start()
+
+    // The gateway sits in front of the harness: it is the same origin the window
+    // loads, and it owns the flows the harness has no routes for — device pairing
+    // (/devices, /devices/newcode, /devices/revoke), the pairing dashboard, the
+    // invite pages and the tunnel. Without it those buttons POST into nothing.
+    const harnessPort = new URL(url).port
+    gateway = spawn(process.execPath, [join(resourcesPath, 'gateway.cjs')], {
+      cwd: paths.launchRoot,
+      env: {
+        ...process.env,
+        ELECTRON_RUN_AS_NODE: '1',
+        DSH_REMOTE_HOST: '127.0.0.1',
+        DSH_REMOTE_PORT: String(GATEWAY_PORT),
+        DSH_REMOTE_UPSTREAM: `127.0.0.1:${harnessPort}`,
+        DSH_REMOTE_DIR: join(app.getPath('userData'), 'remote'),
+        // The shell owns cloudflared's lifecycle here, not a launchd job.
+        DSH_REMOTE_TUNNEL_MANAGED: 'gateway',
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+      detached: process.platform !== 'win32',
+    })
+    gateway.stdout.on('data', (b) => runtime.note(`[gateway] ${String(b).trimEnd()}`))
+    gateway.stderr.on('data', (b) => runtime.note(`[gateway] ${String(b).trimEnd()}`))
+    const gatewayUrl = `http://127.0.0.1:${GATEWAY_PORT}`
+    if (!(await waitForHttp(gatewayUrl, 20_000))) throw new Error(`gnts: the gateway did not start on ${GATEWAY_PORT}`)
+    allowedOrigin = gatewayUrl
+    await pairSelf(gatewayUrl, paths)
+    await window.loadURL(gatewayUrl)
+    return
     allowedOrigin = url
     // Only `GET /?token=...` trades the launch token for the signed session
     // cookie; API paths and Authorization headers refuse it. So the first
@@ -162,5 +285,13 @@ if (!app.requestSingleInstanceLock()) {
 
   app.on('before-quit', () => {
     runtime?.stop()
+    if (gateway && gateway.exitCode === null) {
+      try {
+        if (process.platform === 'win32') gateway.kill()
+        else process.kill(-gateway.pid, 'SIGTERM')
+      } catch {
+        // already gone
+      }
+    }
   })
 }
