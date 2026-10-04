@@ -6,10 +6,12 @@ export default {
   files: ['src/**/*', 'package.json'],
   // The Node entry and the patch layer are read at runtime by path, so they must
   // sit in Resources rather than inside the asar.
+  // Explicit from/to: a bare path would keep the `resources/` prefix and land
+  // these one level too deep, where the runtime cannot find them.
   extraResources: [
-    'resources/harness-node-entry.mjs',
-    'resources/host-module-fallback.mjs',
-    'resources/gnts.patch.yml',
+    { from: 'resources/harness-node-entry.mjs', to: 'harness-node-entry.mjs' },
+    { from: 'resources/host-module-fallback.mjs', to: 'host-module-fallback.mjs' },
+    { from: 'resources/gnts.patch.yml', to: 'gnts.patch.yml' },
   ],
   asar: true,
   npmRebuild: false,
