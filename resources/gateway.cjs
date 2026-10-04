@@ -1720,6 +1720,6 @@ server.listen(PORT, HOST, () => {
       audit('tunnel-resumed', { ok: started.ok });
     }
   } catch (e) { /* reported by the Tunnel page */ }
-  refreshPublicUrl();
+  setTimeout(refreshPublicUrl, 0);   // gnts: deferred — the module body has not finished, so reading publicUrl here hits the TDZ
   setInterval(refreshPublicUrl, 15000).unref?.();
 });

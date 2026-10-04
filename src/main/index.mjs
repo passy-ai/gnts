@@ -8,7 +8,7 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { spawn } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { chmodSync, copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { session } from 'electron'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -203,6 +203,32 @@ async function boot() {
 
   try {
     const { url, token } = await runtime.start()
+
+    // The gateway authenticates every request it proxies with the harness's launch
+    // token, read from <DSH_REMOTE_DIR>/web-token. Without it the gateway forwards
+    // unauthenticated and the harness answers 401 — which is what a public tunnel
+    // URL showed instead of the UI. It reads the file on demand, so writing once
+    // here is enough.
+    if (token) {
+      const remoteDir = join(app.getPath('userData'), 'remote')
+      mkdirSync(remoteDir, { recursive: true, mode: 0o700 })
+      writeFileSync(join(remoteDir, 'web-token'), token, { mode: 0o600 })
+
+      // The tunnel connector needs its own token, and a box that already has one
+      // keeps it in the kit's directory. Reuse it rather than making the operator
+      // re-authenticate: copy once, and leave it alone after that.
+      const kitToken = join(app.getPath('home'), '.dsh-remote', 'cloudflared.token')
+      const ourToken = join(remoteDir, 'cloudflared.token')
+      if (!existsSync(ourToken) && existsSync(kitToken)) {
+        try {
+          copyFileSync(kitToken, ourToken)
+          chmodSync(ourToken, 0o600)
+          runtime.note('[gnts] reused the existing cloudflared token')
+        } catch (error) {
+          runtime.note(`[gnts] could not reuse the tunnel token: ${String(error)}`)
+        }
+      }
+    }
 
     // The gateway sits in front of the harness: it is the same origin the window
     // loads, and it owns the flows the harness has no routes for — device pairing
