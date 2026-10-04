@@ -14,7 +14,8 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
-    "@deepseek-ai/dsh": "0.2.0-rc.2"
+    "@deepseek-ai/dsh": "0.2.0-rc.2",
+    "@deepseek-ai/cordis-plugin-group": "^1.0.4"
   },
   "devDependencies": {
     "electron": "43.0.0",

@@ -862,7 +862,6 @@ function loginPage(opts) {
     <input type="hidden" name="label" value="${escapeHtml(opts.label || 'First device')}">
     <button class="primary" type="submit">Pair this browser</button>
   </form>
-  <p class="hint">On the host you can also run <code>dsh-remote pair</code>. Pairing a device gives it its own session, revocable any time from Settings \u2192 Pairing.</p>
 </div>`);
   }
 

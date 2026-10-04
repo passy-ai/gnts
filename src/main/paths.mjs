@@ -20,7 +20,7 @@ export function resolvePaths(app) {
     launchRoot: join(app.userData, 'launch-root'),
     nodeEntryPath: join(app.resourcesPath, 'harness-node-entry.mjs'),
     patchPath: join(app.resourcesPath, 'gnts.patch.yml'),
-    dshEntryPath: resolveDshEntry(app.appPath),
+    dshEntryPath: resolveDshEntry(app.appPath, app.resourcesPath),
   }
 }
 
@@ -33,8 +33,15 @@ export function resolvePaths(app) {
  * @param {string} appPath - the application directory, or its asar.
  * @returns {string} absolute path to the harness CLI entry.
  */
-export function resolveDshEntry(appPath) {
+export function resolveDshEntry(appPath, resourcesPath) {
   if (process.env.GNTS_DSH_ENTRY) return process.env.GNTS_DSH_ENTRY
+
+  // Packaged: the dependency tree ships in Resources (see electron-builder.config.mjs),
+  // so resolve from there rather than from the asar.
+  if (resourcesPath !== undefined) {
+    const unpacked = join(resourcesPath, 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
+    if (existsSync(unpacked)) return unpacked
+  }
 
   const require = createRequire(join(appPath, 'package.json'))
   let manifest
