@@ -13,6 +13,11 @@ function markPlatform() {
   const root = document.documentElement
   if (!root) return
   if (process.platform === 'darwin') root.dataset.platform = 'darwin'
+  // Setting data-platform above makes dsh-client-shortcuts conclude it is in a
+  // desktop host, where it then demands a native keyboard bridge we do not
+  // have. This marker keeps it on the browser keyboard adapter while still
+  // reporting the platform, which is what makes the native macOS layout work.
+  root.dataset.gntsWebShortcuts = 'true'
 }
 
 markPlatform()

@@ -165,6 +165,11 @@ export class HarnessRuntime {
     return { url, token: this.#token }
   }
 
+  /** Append a line to the desktop's log. Used for renderer diagnostics. */
+  note(line) {
+    this.#note(line)
+  }
+
   /** Stop Harness and everything it spawned. Safe to call more than once. */
   stop() {
     const child = this.#child

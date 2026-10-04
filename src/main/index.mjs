@@ -45,6 +45,16 @@ function createWindow() {
 
   created.once('ready-to-show', () => created.show())
 
+  // Client-side plugin failures only ever reach the renderer console, so without
+  // this they are invisible outside the window. Electron changed this event's
+  // shape, so accept both.
+  created.webContents.on('console-message', (...args) => {
+    const details = args[0]
+    const message = typeof details?.message === 'string' ? details.message : args[2]
+    const level = typeof details?.level === 'string' ? details.level : args[1]
+    if (typeof message === 'string') runtime?.note(`[page:${level}] ${message}`)
+  })
+
   // The window is a view onto loopback and nothing else. Anything else opens in
   // the user's browser, where it belongs.
   const permit = (url) => (allowedOrigin ? url.startsWith(allowedOrigin) : false)
@@ -98,9 +108,16 @@ async function boot() {
   })
 
   try {
-    const { url } = await runtime.start()
+    const { url, token } = await runtime.start()
     allowedOrigin = url
-    if (window && !window.isDestroyed()) await window.loadURL(url)
+    // Only `GET /?token=...` trades the launch token for the signed session
+    // cookie; API paths and Authorization headers refuse it. So the first
+    // navigation must carry the token, and Chromium keeps the cookie for every
+    // later request on this origin. A reload with a stale token is redirected
+    // to a clean `/` while the cookie is still valid.
+    const first = new URL(url)
+    if (token) first.searchParams.set('token', token)
+    if (window && !window.isDestroyed()) await window.loadURL(first.toString())
   } catch (error) {
     const message = String(error instanceof Error ? error.message : error)
     if (window && !window.isDestroyed()) {
@@ -116,6 +133,10 @@ async function boot() {
     }
   }
 }
+
+// Development escape hatch: point the app at a throwaway data directory so a
+// test run cannot touch a real installation's DSH_HOME.
+if (process.env.GNTS_USER_DATA) app.setPath('userData', process.env.GNTS_USER_DATA)
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()

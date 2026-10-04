@@ -10,13 +10,15 @@
     "start": "electron .",
     "package:mac": "electron-builder --mac --config electron-builder.config.mjs",
     "package:win": "electron-builder --win --config electron-builder.config.mjs",
-    "package:dir": "electron-builder --dir --config electron-builder.config.mjs"
+    "package:dir": "electron-builder --dir --config electron-builder.config.mjs",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@deepseek-ai/dsh": "0.2.0-rc.2"
   },
   "devDependencies": {
     "electron": "43.0.0",
-    "electron-builder": "26.15.3"
+    "electron-builder": "26.15.3",
+    "patch-package": "^8.0.1"
   }
 }
