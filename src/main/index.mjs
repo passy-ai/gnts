@@ -147,7 +147,14 @@ function createWindow() {
     // our own sidebar and folders packages fixed both, so the clamp is gone.
     minWidth: 360,
     show: false,
-    backgroundColor: '#0a0a0a',
+    // The sidebar is deliberately transparent on macOS (the stock rule is
+    // background: 0 0), so what shows through it is the window's material. Without
+    // vibrancy there is nothing behind it and it renders as flat opaque grey.
+    // 'sidebar' is the material the reference uses, with a transparent window
+    // background so the desktop bleeds through.
+    backgroundColor: process.platform === 'darwin' ? '#00000000' : '#0a0a0a',
+    vibrancy: process.platform === 'darwin' ? 'sidebar' : undefined,
+    visualEffectState: 'active',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     trafficLightPosition: { x: 16, y: 18 },
     webPreferences: {
