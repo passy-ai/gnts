@@ -277,7 +277,16 @@ async function boot() {
     if (!(await waitForHttp(gatewayUrl, 20_000))) throw new Error(`gnts: the gateway did not start on ${GATEWAY_PORT}`)
     allowedOrigin = gatewayUrl
     await pairSelf(gatewayUrl, paths)
-    publishWebToken(token, join(app.getPath('userData'), 'remote'))
+    const remoteDir = join(app.getPath('userData'), 'remote')
+    publishWebToken(token, remoteDir)
+    // Keep it current rather than trusting one write. The harness mints a token per
+    // launch and the supervisor restarts it, so any single publish goes stale — and
+    // the gateway then proxies with a token the harness rejects, which is the 401
+    // body that keeps appearing instead of the UI. The gateway re-reads the file on
+    // every request, so keeping the file fresh is the whole fix.
+    const tokenTimer = setInterval(() => { publishWebToken(runtime.token, remoteDir) }, 2000)
+    tokenTimer.unref?.()
+    app.on('before-quit', () => { clearInterval(tokenTimer) })
     await window.loadURL(gatewayUrl)
     return
     allowedOrigin = url
