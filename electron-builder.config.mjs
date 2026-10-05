@@ -26,10 +26,14 @@ export default {
   asar: true,
   npmRebuild: false,
   mac: {
+    // The icon we generated for the earlier setup: black field, white gnts.dev
+    // wordmark in Geist, sharp corners.
+    icon: 'build/icon.icns',
     category: 'public.app-category.developer-tools',
     target: [{ target: 'dmg', arch: ['arm64', 'x64'] }],
   },
   win: {
+    icon: 'build/icon.png',
     target: [{ target: 'nsis', arch: ['x64'] }],
   },
 }
