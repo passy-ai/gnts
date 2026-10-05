@@ -28,6 +28,26 @@ let gateway
 /** The gateway's fixed port — the tunnel's ingress target, so it must not move. */
 const GATEWAY_PORT = 8080
 
+/**
+ * Publish the harness's launch token where the gateway reads it.
+ *
+ * Called before every window load, not once: the harness mints a new token each
+ * launch, and our supervisor restarts it after a crash — so a file written only
+ * at boot goes stale and the gateway proxies with a token the harness rejects,
+ * which is the 401 body a public URL showed.
+ * @param {string | undefined} token
+ * @param {string} remoteDir
+ */
+function publishWebToken(token, remoteDir) {
+  if (!token) return
+  try {
+    mkdirSync(remoteDir, { recursive: true, mode: 0o700 })
+    writeFileSync(join(remoteDir, 'web-token'), token, { mode: 0o600 })
+  } catch (error) {
+    runtime?.note(`[gnts] could not publish the web token: ${String(error)}`)
+  }
+}
+
 /** Code alphabet and length the gateway redeems. */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 
@@ -257,6 +277,7 @@ async function boot() {
     if (!(await waitForHttp(gatewayUrl, 20_000))) throw new Error(`gnts: the gateway did not start on ${GATEWAY_PORT}`)
     allowedOrigin = gatewayUrl
     await pairSelf(gatewayUrl, paths)
+    publishWebToken(token, join(app.getPath('userData'), 'remote'))
     await window.loadURL(gatewayUrl)
     return
     allowedOrigin = url
