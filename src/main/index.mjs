@@ -122,9 +122,10 @@ function createWindow() {
   const created = new BrowserWindow({
     width: 1280,
     height: 820,
-    // 1024, not smaller: Harness's client switches to its narrow layout below
-    // 1024px, and a desktop window should not be laid out as a phone.
-    minWidth: 1024,
+    // 360, so the window can be dragged down to phone width. It was clamped at
+    // 1024 while the client's narrow layout broke the rail and the file panel;
+    // our own sidebar and folders packages fixed both, so the clamp is gone.
+    minWidth: 360,
     show: false,
     backgroundColor: '#0a0a0a',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
