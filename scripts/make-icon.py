@@ -21,9 +21,9 @@ BUILD = os.path.join(HERE, "..", "build")
 SIZE = 1024
 BG = (10, 10, 10)          # the app's own black, so the icon matches its window
 FG = (255, 255, 255)
-WORDMARK = "gnts"
+WORDMARK = "gnts."
 SIDE_MARGIN = 0.07         # kept for reference; sizing is by cap height now
-CAP_RATIO = 0.158          # cap height as a fraction of the icon — a touch larger than the earlier one
+CAP_RATIO = 0.175          # cap height as a fraction of the icon — a touch larger than the earlier one
 GEIST_URL = "https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/Geist-SemiBold.woff2"
 
 FALLBACK_FONTS = [
