@@ -22,7 +22,8 @@ SIZE = 1024
 BG = (10, 10, 10)          # the app's own black, so the icon matches its window
 FG = (255, 255, 255)
 WORDMARK = "gnts"
-SIDE_MARGIN = 0.07         # fraction of the icon width, left and right
+SIDE_MARGIN = 0.07         # kept for reference; sizing is by cap height now
+CAP_RATIO = 0.137          # cap height as a fraction of the icon, as the earlier icon had
 GEIST_URL = "https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/Geist-SemiBold.woff2"
 
 FALLBACK_FONTS = [
@@ -87,13 +88,16 @@ def main():
 
     font = pick_font(200)
     LAST_FONT[0] = getattr(font, "path", None)
-    # grow until the wordmark fills the width minus the margins
-    target = SIZE * (1 - 2 * SIDE_MARGIN)
+    # Size by CAP HEIGHT, not by width. Filling the width means a short word gets a
+    # larger face than a long one — which is why dropping ".dev" made the icon look
+    # zoomed in. A fixed cap height keeps the letterforms the same size whatever the
+    # wordmark says; the width then simply follows the text.
+    cap_target = SIZE * CAP_RATIO
     best = font
-    for size in range(120, 460, 4):
+    for size in range(60, 460, 2):
         candidate = ImageFont.truetype(font.path, size)
-        box = candidate.getbbox(WORDMARK)
-        if box[2] - box[0] <= target:
+        caps = candidate.getbbox("GNTSDEV")
+        if caps[3] - caps[1] <= cap_target:
             best = candidate
         else:
             break
