@@ -6,7 +6,6 @@
  */
 
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
-import electronUpdater from 'electron-updater'
 import { spawn } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
 import { chmodSync, copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
@@ -52,40 +51,44 @@ function publishWebToken(token, remoteDir) {
 /**
  * Updates, the simple way.
  *
- * The feed is any directory served over HTTP — `provider: generic` is a URL and
- * nothing more — so a local `python3 -m http.server` in `feed/` is a real feed.
- * Set GNTS_UPDATE_FEED to it. Nothing happens without it, so a normal launch is
- * untouched.
+ * There is no installer and no updater: the app asks a small JSON endpoint what
+ * the current version is, and if it is newer it offers a link. The download is a
+ * normal dmg, and installing it is dragging it into Applications — the same thing
+ * we do by hand. That sidesteps Squirrel and its code-signing check entirely.
  *
- * `forceDevUpdateConfig` lets a locally built app take updates at all; macOS still
- * verifies the signature before applying one, which an unsigned build may fail.
+ * GNTS_UPDATE_URL points at the JSON. Without it nothing happens, so a normal
+ * launch is untouched. The shape is:
+ *
+ *   { "version": "0.2.0", "url": "https://…/gnts.dev-0.2.0-arm64.dmg", "notes": "…" }
+ *
  * @param {import('electron').BrowserWindow} window
  */
-function wireUpdates(window) {
-  const feed = process.env.GNTS_UPDATE_FEED
+async function checkForUpdate(window) {
+  const feed = process.env.GNTS_UPDATE_URL
   if (!feed) return
-  const { autoUpdater } = electronUpdater
-  autoUpdater.forceDevUpdateConfig = true
-  autoUpdater.autoDownload = false
-  autoUpdater.setFeedURL({ provider: 'generic', url: feed })
-  autoUpdater.on('error', (error) => runtime?.note(`[update] ${String(error).split('\n')[0]}`))
-  autoUpdater.on('checking-for-update', () => runtime?.note('[update] checking'))
-  autoUpdater.on('update-not-available', () => runtime?.note('[update] already current'))
-  autoUpdater.on('update-available', (info) => {
-    runtime?.note(`[update] available: ${info.version}`)
-    void dialog.showMessageBox(window, {
-      type: 'question', buttons: ['Download', 'Later'], defaultId: 0,
-      message: `Version ${info.version} is available.`, detail: `Current: ${app.getVersion()}`,
-    }).then(({ response }) => { if (response === 0) void autoUpdater.downloadUpdate() })
-  })
-  autoUpdater.on('update-downloaded', (info) => {
-    runtime?.note(`[update] downloaded: ${info.version}`)
-    void dialog.showMessageBox(window, {
-      type: 'question', buttons: ['Restart and install', 'Later'], defaultId: 0,
-      message: `Version ${info.version} is ready.`,
-    }).then(({ response }) => { if (response === 0) autoUpdater.quitAndInstall() })
-  })
-  void autoUpdater.checkForUpdates().catch((error) => runtime?.note(`[update] check failed: ${String(error)}`))
+  try {
+    const response = await fetch(feed, { signal: AbortSignal.timeout(10_000) })
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const latest = await response.json()
+    const current = app.getVersion()
+    if (typeof latest?.version !== 'string' || latest.version === current) {
+      runtime?.note(`[update] current (${current})`)
+      return
+    }
+    // Only compare, never order: any different version is worth offering, and a
+    // half-understood semver comparison is worse than none.
+    runtime?.note(`[update] ${latest.version} available (have ${current})`)
+    const { response: choice } = await dialog.showMessageBox(window, {
+      type: 'info',
+      buttons: ['Download', 'Later'],
+      defaultId: 0,
+      message: `gnts.dev ${latest.version} is available.`,
+      detail: `${latest.notes ?? ''}\n\nYou have ${current}. The download replaces this app in Applications.`.trim(),
+    })
+    if (choice === 0 && typeof latest.url === 'string') void shell.openExternal(latest.url)
+  } catch (error) {
+    runtime?.note(`[update] check failed: ${String(error).split('\n')[0]}`)
+  }
 }
 
 /** Code alphabet and length the gateway redeems. */
@@ -345,7 +348,7 @@ async function boot() {
     tokenTimer.unref?.()
     app.on('before-quit', () => { clearInterval(tokenTimer) })
     await window.loadURL(gatewayUrl)
-    wireUpdates(window)
+    void checkForUpdate(window)
     return
     allowedOrigin = url
     // Only `GET /?token=...` trades the launch token for the signed session
