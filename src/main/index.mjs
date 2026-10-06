@@ -6,6 +6,7 @@
  */
 
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import electronUpdater from 'electron-updater'
 import { spawn } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
 import { chmodSync, copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
@@ -46,6 +47,45 @@ function publishWebToken(token, remoteDir) {
   } catch (error) {
     runtime?.note(`[gnts] could not publish the web token: ${String(error)}`)
   }
+}
+
+/**
+ * Updates, the simple way.
+ *
+ * The feed is any directory served over HTTP — `provider: generic` is a URL and
+ * nothing more — so a local `python3 -m http.server` in `feed/` is a real feed.
+ * Set GNTS_UPDATE_FEED to it. Nothing happens without it, so a normal launch is
+ * untouched.
+ *
+ * `forceDevUpdateConfig` lets a locally built app take updates at all; macOS still
+ * verifies the signature before applying one, which an unsigned build may fail.
+ * @param {import('electron').BrowserWindow} window
+ */
+function wireUpdates(window) {
+  const feed = process.env.GNTS_UPDATE_FEED
+  if (!feed) return
+  const { autoUpdater } = electronUpdater
+  autoUpdater.forceDevUpdateConfig = true
+  autoUpdater.autoDownload = false
+  autoUpdater.setFeedURL({ provider: 'generic', url: feed })
+  autoUpdater.on('error', (error) => runtime?.note(`[update] ${String(error).split('\n')[0]}`))
+  autoUpdater.on('checking-for-update', () => runtime?.note('[update] checking'))
+  autoUpdater.on('update-not-available', () => runtime?.note('[update] already current'))
+  autoUpdater.on('update-available', (info) => {
+    runtime?.note(`[update] available: ${info.version}`)
+    void dialog.showMessageBox(window, {
+      type: 'question', buttons: ['Download', 'Later'], defaultId: 0,
+      message: `Version ${info.version} is available.`, detail: `Current: ${app.getVersion()}`,
+    }).then(({ response }) => { if (response === 0) void autoUpdater.downloadUpdate() })
+  })
+  autoUpdater.on('update-downloaded', (info) => {
+    runtime?.note(`[update] downloaded: ${info.version}`)
+    void dialog.showMessageBox(window, {
+      type: 'question', buttons: ['Restart and install', 'Later'], defaultId: 0,
+      message: `Version ${info.version} is ready.`,
+    }).then(({ response }) => { if (response === 0) autoUpdater.quitAndInstall() })
+  })
+  void autoUpdater.checkForUpdates().catch((error) => runtime?.note(`[update] check failed: ${String(error)}`))
 }
 
 /** Code alphabet and length the gateway redeems. */
@@ -305,6 +345,7 @@ async function boot() {
     tokenTimer.unref?.()
     app.on('before-quit', () => { clearInterval(tokenTimer) })
     await window.loadURL(gatewayUrl)
+    wireUpdates(window)
     return
     allowedOrigin = url
     // Only `GET /?token=...` trades the launch token for the signed session
