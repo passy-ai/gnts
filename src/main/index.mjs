@@ -167,6 +167,16 @@ function createWindow() {
 
   created.once('ready-to-show', () => created.show())
 
+  // A way into the renderer without a menu item: the window has no default
+  // shortcut for it, and page errors otherwise only reach the log.
+  created.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && input.key.toLowerCase() === 'i'
+      && (input.meta || input.control) && input.alt) {
+      event.preventDefault()
+      created.webContents.toggleDevTools()
+    }
+  })
+
   // Client-side plugin failures only ever reach the renderer console, so without
   // this they are invisible outside the window. Electron changed this event's
   // shape, so accept both.
