@@ -1689,10 +1689,12 @@ function refreshPublicUrl() {
   // A named tunnel's hostname lives in the dashboard, not here: when it cannot be
   // re-read (log rotated, connector just restarted) keep whatever public URL is
   // already recorded instead of downgrading invites to a loopback address.
-  const publicUrl = mode === 'quick' ? tunnelUrl()
+  // `publicUrl` is a module-level function; this local must not shadow it, or
+  // the call below resolves to the binding being initialised and throws a TDZ.
+  const resolvedUrl = mode === 'quick' ? tunnelUrl()
     : mode === 'named' ? (namedTunnelUrl() || (String(publicUrl()).startsWith('https://') ? publicUrl() : null))
     : null;
-  const wanted = publicUrl !== null ? publicUrl : `http://127.0.0.1:${PORT}/`;
+  const wanted = resolvedUrl !== null ? resolvedUrl : `http://127.0.0.1:${PORT}/`;
   if (readIfExists(URL_FILE) !== wanted) {
     try { fs.writeFileSync(URL_FILE, wanted); } catch { /* non-fatal */ }
   }
