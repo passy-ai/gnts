@@ -35,3 +35,10 @@ document.addEventListener('DOMContentLoaded', markPlatform, { once: true })
 contextBridge.exposeInMainWorld('__DSH_DIRECTORY_PICKER__', {
   pick: () => ipcRenderer.invoke('gnts:pick-directory'),
 })
+
+// The window's own material is a main-process concern, but glass mode is a renderer
+// choice, so the one needs a way to ask the other.
+contextBridge.exposeInMainWorld('__GNTS_WINDOW__', {
+  setVibrancy: (material) => ipcRenderer.invoke('gnts:set-vibrancy', material),
+  setAppearance: (source) => ipcRenderer.invoke('gnts:set-appearance', source),
+})

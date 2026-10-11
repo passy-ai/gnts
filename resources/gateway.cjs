@@ -772,7 +772,7 @@ function pageShell(title, body, script) {
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escapeHtml(title)}</title>
 <style>${PAGE_STYLE}</style>
-</head><body><div class="wrap"><div class="brand">gnts.dev</div>${body}</div>
+</head><body><div class="wrap"><div class="brand">gnts</div>${body}</div>
 <script>${COPY_SCRIPT}${script || ''}</script>
 </body></html>`;
 }

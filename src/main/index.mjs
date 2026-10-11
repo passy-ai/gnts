@@ -5,15 +5,17 @@
  * shows is Harness's own web UI; everything it adds is a preload bridge.
  */
 
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron'
 import { spawn } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
 import { chmodSync, copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { session } from 'electron'
 import { dirname, join } from 'node:path'
+import { homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { HarnessRuntime } from './harness.mjs'
 import { resolvePaths } from './paths.mjs'
+import { seedProfile } from './seed.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
@@ -82,7 +84,7 @@ async function checkForUpdate(window) {
       type: 'info',
       buttons: ['Download', 'Later'],
       defaultId: 0,
-      message: `gnts.dev ${latest.version} is available.`,
+      message: `gnts ${latest.version} is available.`,
       detail: `${latest.notes ?? ''}\n\nYou have ${current}. The download replaces this app in Applications.`.trim(),
     })
     if (choice === 0 && typeof latest.url === 'string') void shell.openExternal(latest.url)
@@ -126,7 +128,7 @@ async function pairSelf(origin, paths) {
       method: 'POST',
       redirect: 'manual',
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ code, label: 'gnts.dev desktop' }).toString(),
+      body: new URLSearchParams({ code, label: 'gnts desktop' }).toString(),
     })
   } catch (error) {
     runtime?.note(`[gnts] pairing request failed: ${String(error)}`)
@@ -252,6 +254,34 @@ function createWindow() {
 
 /** The native directory picker Harness's host-side consumers expect to exist. */
 function registerIpc() {
+  // Glass mode changes the window's material, not just CSS. 'sidebar' is a sidebar
+  // material and has a vertical gradient — over a full-height content column that reads
+  // as a darker band at the bottom. 'under-window' is flat and near-uniform, which is
+  // what a full-width glass surface wants. Falls back silently if the platform has none.
+  // The window's *appearance* decides what colour the vibrancy material is. The app's UI
+  // theme is a web-side setting, so without this the two drift: a light UI over a dark
+  // material, which is why the content column read as black however little tint it had.
+  ipcMain.handle('gnts:set-appearance', (_event, source) => {
+    try {
+      nativeTheme.themeSource = source === 'dark' || source === 'light' ? source : 'system'
+      return true
+    } catch (e) {
+      console.warn('[gnts] could not set appearance:', e && e.message)
+      return false
+    }
+  })
+
+  ipcMain.handle('gnts:set-vibrancy', (_event, material) => {
+    if (!window || typeof window.setVibrancy !== 'function') return false
+    try {
+      window.setVibrancy(typeof material === 'string' && material.length > 0 ? material : null)
+      return true
+    } catch (e) {
+      console.warn('[gnts] could not set vibrancy:', e && e.message)
+      return false
+    }
+  })
+
   ipcMain.handle('gnts:pick-directory', async () => {
     if (!window) return null
     const result = await dialog.showOpenDialog(window, {
@@ -270,6 +300,16 @@ async function boot() {
   })
 
   window = createWindow()
+
+  // A cleared or newly installed app has an empty DSH_HOME, so the profile must be laid
+  // down before the harness starts — otherwise no plugin resolves and the app opens
+  // with none of its own UI.
+  seedProfile({
+    dshHome: paths.dshHome,
+    resourcesPath,
+    pluginsDir: process.env.GNTS_PLUGINS_DIR || join(homedir(), '.local', 'dsh-plugins', 'plugins'),
+    log: (m) => console.log(m),
+  })
 
   runtime = new HarnessRuntime({
     dshEntryPath: paths.dshEntryPath,

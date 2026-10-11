@@ -36,7 +36,11 @@ const server = http.createServer((req, res) => {
 				let shown = body;
 				try {
 					const j = JSON.parse(body);
-					shown = JSON.stringify({ model: j.model, stream: j.stream, msgs: (j.messages || []).length, max_tokens: j.max_tokens });
+					const ms = j.messages || [];
+					const last = ms[ms.length - 1] && ms[ms.length - 1].content;
+					const text = typeof last === "string" ? last : JSON.stringify(last);
+					shown = JSON.stringify({ model: j.model, stream: j.stream, msgs: ms.length, max_tokens: j.max_tokens }) +
+						"\n  prompt: " + String(text).replace(/\s+/g, " ").slice(0, 220);
 				} catch { shown = body.slice(0, 300); }
 				console.log(`  body: ${shown}`);
 			}

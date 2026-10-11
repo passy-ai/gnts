@@ -1,7 +1,104 @@
-# gnts.dev patch layer — applied after every bundle layer in the profile.
+# Your patch layer for this dsh profile, applied after every bundle layer.
 #
-# Deliberately empty. A patch row is compatibility debt: each one has an upgrade
-# cost and needs a recorded upstream version, the problem it solves, and the
-# condition under which it can be removed. We add rows only when a seam is
-# genuinely missing, and we prefer a plugin.
-[]
+# This is the consolidated composition: every upstream entry we replace is disabled
+# here, and every package we add is mounted here. Each package also ships its own
+# cordis.patch.yml so installing it mounts itself; this file is the whole picture.
+#
+# Deliberately absent: any Passy provider. The wallet plugin registers that itself at
+# runtime, with the models the gateway serves for THIS wallet — so a fresh install has
+# no Passy provider at all, and none appears until someone chooses a wallet.
+#
+# Also absent: any agent-default-model row. Naming a provider that nothing has
+# registered yet is fatal, not a preference — the chat entry fails to activate and the
+# composer disappears. The wallet plugin writes the default once the route exists.
+
+# ── disabled: upstream entries our packages replace or exclude ──────────────
+
+- id: ui-settings-models
+  disabled: true
+
+
+# One option in the Official group, off by default.
+- id: dsh-market
+  disabled: true
+
+# Offered in the Plugins page as an official extra, off until chosen.
+- id: gnts-passy-wallet
+  disabled: true
+
+
+
+
+
+
+- id: llm-deepseek
+  disabled: true
+
+- id: llm-deepseek-account
+  disabled: true
+
+- id: ui-brand-official
+  disabled: true
+
+- id: ui-sidebar-right
+  disabled: true
+
+- id: ui-plugin-manager
+  disabled: true
+
+- id: ui-settings-general
+  disabled: true
+
+- id: ui-layout
+  disabled: true
+
+- id: ui-sidebar
+  disabled: true
+
+# The "Help improve DeepSeek models and products" toggle only applies to the official API,
+# which this build does not use. Nothing to upload, so the row is not offered.
+- id: ui-settings-session-log
+  disabled: true
+
+
+# ── mounted: our packages ───────────────────────────────────────────────────
+
+# A provider with no models. The harness falls back to its bundled DeepSeek route when
+# none is registered, and the model seat then shows it before any plugin can paint — that
+# is the flash. An empty provider keeps the catalog empty, so the seat says "Add Model"
+# from the first render and nothing unusable is ever offered. Providers without models are
+# dropped from the catalog, so this never appears as something to pick.
+- id: llm-pi-ai
+  name: "@deepseek-ai/dsh-llm-pi-ai"
+  config:
+    providers:
+      gnts:
+        api: openai-completions
+        baseURL: http://127.0.0.1:8080/v1
+        models: []
+
+- insert:
+    - id: gnts-autodiscover
+      name: gnts-autodiscover
+    - id: gnts-brand
+      name: gnts-brand
+    - id: gnts-folders
+      name: gnts-folders
+    - id: gnts-model-search
+      name: gnts-model-search
+    - id: gnts-pairing
+      name: gnts-pairing
+    - id: gnts-plugins
+      name: gnts-plugins
+    - id: gnts-settings
+      name: gnts-settings
+    - id: gnts-sidebar
+      name: gnts-sidebar
+    - id: gnts-sidebar-shell
+      name: gnts-sidebar-shell
+    - id: gnts-glass
+      name: gnts-glass
+    - id: dsh-model-default
+      name: dsh-model-default
+    - id: gnts-tunnel
+      name: gnts-tunnel
