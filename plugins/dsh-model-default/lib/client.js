@@ -10,7 +10,9 @@ window.__ModuleLoader__.load({
 		// this plugin only writes its LABEL, re-derived from the live catalog on
 		// every check so it can never go stale:
 		//
-		//   no models configured  →  "Add Model"    (and clicking opens Autodiscover)
+		//   no providers configured →  "Add Model"    (and clicking opens Autodiscover)
+		//   providers but none chosen →  "Select Model" (clicking opens the model menu)
+		//   a model chosen           →  left alone (the harness renders "Model · Effort")
 		//   models, none selected →  "Select Model"
 		//   a model selected      →  that model's name
 		//
@@ -98,13 +100,59 @@ window.__ModuleLoader__.load({
 					return null;
 				}
 
+				/** True when the stored default names a model the catalog can actually serve. */
+				function storedIsReal(groups) {
+					return findModel(groups, storedDefault()) !== null;
+				}
+
+				/**
+				 * The catalog-free form of storedIsReal, for use before the async catalog resolves:
+				 * is the stored default one of the provider's own configured models?
+				 */
+				function storedIsRealSync() {
+					var stored = storedDefault();
+					if (stored === null) return false;
+					try {
+						var snap = mirror.namespace("llm-pi-ai");
+						var providers = snap && snap.value && snap.value.providers;
+						var p = providers && providers[stored.provider];
+						if (!p || !p.models) return false;
+						for (var i = 0; i < p.models.length; i++) {
+							if (p.models[i].id === stored.model) return true;
+						}
+					} catch (e) {}
+					return false;
+				}
+
 				/** Which of the three labels the seat should carry right now. */
 				function desiredLabel(groups, catalog) {
-					if (groups.length === 0) return { text: "Add Model", adding: true };
-					// With a model chosen, leave the label alone. The harness renders
-					// "Model · Effort" as one string, so painting the model name here
-					// erased the effort suffix and the control looked broken.
-					return null;
+					if (groups.length === 0) return { text: "Add Model", adding: true, aria: "Add Model" };
+					// A non-null default does NOT mean the user chose one: the config schema always
+					// carries deepseek-official/deepseek-flash, so storedDefault() was never null on
+					// any boot. That made this branch unreachable and the seat showed the harness's
+					// raw "provider/model" instead of "Select Model". Only a default naming a model
+					// the catalog can serve counts as a choice.
+					if (storedIsReal(groups)) return null;
+					return { text: "Select Model", adding: false, aria: "Select model" };
+				}
+
+				/**
+				 * Whether at least one provider with models is configured, read straight from the
+				 * llm-pi-ai namespace. The async catalog cannot answer this in time to stop a
+				 * wrong label appearing on the first frames, and the two labels differ.
+				 */
+				function hasConfiguredProvider() {
+					try {
+						var snap = mirror.namespace("llm-pi-ai");
+						var providers = snap && snap.value && snap.value.providers;
+						if (!providers || typeof providers !== "object") return false;
+						for (var name in providers) {
+							if (!Object.prototype.hasOwnProperty.call(providers, name)) continue;
+							var p = providers[name];
+							if (p && p.models && p.models.length > 0) return true;
+						}
+					} catch (e) {}
+					return false;
 				}
 
 				/**
@@ -130,13 +178,17 @@ window.__ModuleLoader__.load({
 
 				/** Write the label, but only when it differs (idempotent, React-safe). */
 				var adding = false;
+				// True while the seat shows a placeholder, i.e. no model is chosen yet. Both
+				// placeholder states need it: sending with no model fails either way.
+				var needsModel = false;
 				function paint(label) {
-					if (label === null) { adding = false; return; }
+					if (label === null) { adding = false; needsModel = false; return; }
 					adding = label.adding;
+					needsModel = true;
 					var button = seat();
 					if (button === null) return;
 					if (seatText(button) !== label.text) write(seatLabel(button), label.text);
-					button.setAttribute("aria-label", label.adding ? "Add Model" : "Select model, current " + label.text);
+					button.setAttribute("aria-label", label.aria || (label.adding ? "Add Model" : "Select model, current " + label.text));
 					if (button.getAttribute("title") !== label.text) button.setAttribute("title", label.text);
 				}
 
@@ -214,7 +266,7 @@ window.__ModuleLoader__.load({
 					notice = document.createElement("div");
 					notice.className = "gnts-seat-notice";
 					var text = document.createElement("span");
-					text.textContent = "No model added yet.";
+					text.textContent = adding ? "No model added yet." : "No model selected yet.";
 					var link = document.createElement("button");
 					link.type = "button";
 					link.textContent = "Go to settings";
@@ -247,7 +299,7 @@ window.__ModuleLoader__.load({
 				}
 				// the button
 				document.addEventListener("click", function (event) {
-					if (!adding) return;
+					if (!needsModel) return;
 					if (sendControl(event.target) === null) return;
 					event.preventDefault();
 					event.stopPropagation();
@@ -255,7 +307,7 @@ window.__ModuleLoader__.load({
 				}, true);
 				// and Enter in the composer, which would otherwise send too
 				document.addEventListener("keydown", function (event) {
-					if (!adding) return;
+					if (!needsModel) return;
 					if (event.key !== "Enter" || event.shiftKey) return;
 					var el = event.target;
 					if (el && (el.isContentEditable || el.tagName === "TEXTAREA")) {
@@ -296,8 +348,13 @@ window.__ModuleLoader__.load({
 				// stored there is nothing to show, so say "Add Model" at once.
 				function earlyPaint() {
 					try {
-						if (storedDefault() !== null) return;
-						paint({ text: "Add Model", adding: true });
+						// A real selection means the harness's own label is correct, so painting over
+						// it here would leave our text in place (paint(null) stops painting, it does
+						// not undo a paint) and the effort suffix would never come back.
+						if (storedIsRealSync()) return;
+						paint(hasConfiguredProvider()
+							? { text: "Select Model", adding: false, aria: "Select model" }
+							: { text: "Add Model", adding: true, aria: "Add Model" });
 					} catch (e) {}
 				}
 				earlyPaint();
