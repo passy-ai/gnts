@@ -49,7 +49,7 @@ window.__ModuleLoader__.load({
 			return cE("div", { className: "gnts-ad-start" }, [
 				cE("div", { className: "gnts-ad-startcard", key: "c" }, [
 					cE("h3", { key: "t" }, "How do you want to run models?"),
-					cE("p", { key: "d" }, "Passy gives you a free key and every Passy model — no account, nothing to install. Or bring a provider of your own."),
+					cE("p", { key: "d" }, "Passy gives you a free key and every Passy model. No account, nothing to install. Or bring a provider of your own."),
 					cE("div", { className: "gnts-ad-startrow", key: "r" }, [
 						cE("a", {
 							key: "p", className: "gnts-ad-btn gnts-ad-btn-primary",
@@ -87,7 +87,7 @@ window.__ModuleLoader__.load({
 							title: "Autodiscover",
 							intro: "Pick a provider, paste an API key (or use the configured one) and discover its models live. The format is detected automatically from /v1/chat/completions, /v1/messages or /v1/responses.",
 							addTitle: "Add a provider",
-							addIntro: "Name it and give it a base URL — the format is detected automatically.",
+							addIntro: "Name it and give it a base URL. The format is detected automatically.",
 							providersEmpty: "No configured providers yet. Use the card below to add one.",
 							baseUrl: "Base URL",
 							apiKey: "API key (optional, used for discovery only)",
@@ -681,7 +681,7 @@ var tag = document.createElement("style");
 							} })
 						),
 						cE("p", { className: "zGbnIq_intro", style: { margin: 0, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } },
-							baseURLInit ? baseURLInit : "No base URL yet \u2014 set one below and Discover."),
+							baseURLInit ? baseURLInit : "No base URL yet. Set one below and Discover."),
 						open ? cE("div", { className: "zGbnIq_customizedBody" },
 							cE("div", { className: "zGbnIq_editor" },
 								cE("div", { className: "zGbnIq_field" },
@@ -690,7 +690,7 @@ var tag = document.createElement("style");
 								),
 								cE("div", { className: "zGbnIq_field" },
 									cE("label", { className: "zGbnIq_fieldLabel" }, "API key (optional)"),
-									cE("input", { className: "zGbnIq_input", type: "password", value: keyVal, placeholder: dot === true ? "Key saved \u2014 paste only to override" : "Paste key to discover models\u2026",
+									cE("input", { className: "zGbnIq_input", type: "password", value: keyVal, placeholder: dot === true ? "Key saved. Paste only to override" : "Paste key to discover models\u2026",
 										onChange: function (e) { setKey(e.target.value); },
 										onKeyDown: function (e) { if (e.key === "Enter") discover(urlVal, keyVal, pathVal, ""); } })
 								),
@@ -771,6 +771,8 @@ var tag = document.createElement("style");
 					var name = nameState[0], setName = nameState[1];
 					var urlState = useState("");
 					var url = urlState[0], setUrl = urlState[1];
+					var passyState = useState(false);
+					var passy = passyState[0], setPassy = passyState[1];
 					var pathState = useState("");
 					var path = pathState[0], setPath = pathState[1];
 					var keyState = useState("");
@@ -873,7 +875,7 @@ var tag = document.createElement("style");
 					return cE("li", { className: "zGbnIq_setupCard", style: { listStyle: "none" } },
 						cE("div", { className: "zGbnIq_editorHeader" },
 							cE("span", { className: "zGbnIq_editorTitle" }, "Add a provider"),
-							cE("span", { className: "zGbnIq_editorRoute" }, "Name it and give it a base URL \u2014 the format is detected automatically.")
+							cE("span", { className: "zGbnIq_editorRoute" }, "Name it and give it a base URL. The format is detected automatically.")
 						),
 						cE("div", { className: "zGbnIq_field" },
 							cE("label", { className: "zGbnIq_fieldLabel" }, "Provider name"),
@@ -881,6 +883,37 @@ var tag = document.createElement("style");
 							route.length > 0 && (routeInvalid || routeTaken) ? cE("p", { className: "zGbnIq_error" },
 								routeInvalid ? "Lowercase letters, digits and dashes." + " \u201c" + route + "\u201d" : "Provider \u201c" + route + "\u201d already exists.") : null
 						),
+							// Passy is offered, never enforced: ticking it fills the gateway in, and either
+							// field can be overridden afterwards. Below the name because it answers "which
+							// provider" before "where does it live".
+							cE("div", { className: "zGbnIq_field" },
+								cE("label", { className: "gnts-ad-passy", style: { display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, lineHeight: "20px", color: "var(--dsw-alias-label-secondary)" } },
+									cE("input", { type: "checkbox", checked: passy, style: { accentColor: "#4e75df", width: 14, height: 14, margin: 0, cursor: "pointer" },
+										onChange: function (e) {
+											var on = e.target.checked;
+											setPassy(on);
+											setErr(null);
+											if (on) {
+												if (url.trim().length === 0) setUrl("https://api.passy.ai/v1");
+												if (name.trim().length === 0) setName("passy");
+											} else {
+												// undo only what this checkbox filled in
+												if (url.trim() === "https://api.passy.ai/v1") setUrl("");
+												if (name.trim() === "passy") setName("");
+											}
+										} }),
+									cE("span", null, "Use Passy")
+								),
+								cE("p", { className: "zGbnIq_advancedHint" },
+									"Fills in the Passy gateway. Key at ",
+									cE("a", { className: "gnts-ad-link", href: "https://dash.passy.ai", target: "_blank", rel: "noreferrer noopener" }, "dash.passy.ai"),
+									", ",
+									cE("a", { className: "gnts-ad-link", href: "https://passy.ai/docs", target: "_blank", rel: "noreferrer noopener" }, "Docs"),
+									" or ",
+									cE("a", { className: "gnts-ad-link", href: "https://passy.ai/models", target: "_blank", rel: "noreferrer noopener" }, "Models"),
+									"."
+								)
+							),
 						cE("div", { className: "zGbnIq_field" },
 							cE("label", { className: "zGbnIq_fieldLabel" }, "Base URL"),
 							cE("input", { className: "zGbnIq_input", type: "text", value: url, placeholder: "https://api.example.com/v1", onChange: function (e) { setUrl(e.target.value); setErr(null); } }),
@@ -1002,11 +1035,7 @@ var tag = document.createElement("style");
 
 					return cE("div", { className: "zGbnIq_section" },
 						cE("h3", { className: "zGbnIq_title" }, "Autodiscover"),
-						cE("p", { className: "zGbnIq_intro" }, [
-							"No account needed. ",
-							cE("a", { key: "p", className: "gnts-ad-link", href: "https://passy.ai/models", target: "_blank", rel: "noreferrer noopener" }, "passy.ai"),
-							" gives you a free key and every Passy model, or add any provider of your own below.",
-						]),
+						cE("p", { className: "zGbnIq_intro" }, "Add your own keys and automatically keep the models up to date."),
 						providers.length === 0 && providerCache.list !== null && !loading
 							? cE("p", { className: "zGbnIq_notice", style: { color: "#b7c7f1" } }, "Add your first provider to send messages.")
 							: null,
