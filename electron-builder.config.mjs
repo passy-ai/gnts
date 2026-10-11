@@ -31,6 +31,9 @@ export default {
     // The profile's bundle list. Shipped, not generated: it must keep the base bundles.
     { from: 'resources/gnts.profile.json', to: 'gnts.profile.json' },
     { from: 'resources/gateway.cjs', to: 'gateway.cjs' },
+    // The boot cover, applied to the harness shell by the seed. The shell is inside
+    // node_modules, so it is not in the repo and a fresh checkout would have no cover.
+    { from: 'resources/shell', to: 'shell' },
     // The gnts.dev plugins. Shipping them makes the dmg self-contained: a machine with
     // no ~/.local/dsh-plugins still gets the full UI, because the app links its own copy
     // into the profile it seeds on first run.
