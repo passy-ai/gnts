@@ -61,28 +61,8 @@
 # The vendor bundles mount themselves with their own defaults. Autodiscover owns the
 # llm-pi-ai providers from here on.
 
-- insert:
-    - id: gnts-autodiscover
-      name: gnts-autodiscover
-    - id: gnts-brand
-      name: gnts-brand
-    - id: gnts-folders
-      name: gnts-folders
-    - id: gnts-model-search
-      name: gnts-model-search
-    - id: gnts-pairing
-      name: gnts-pairing
-    - id: gnts-plugins
-      name: gnts-plugins
-    - id: gnts-settings
-      name: gnts-settings
-    - id: gnts-sidebar
-      name: gnts-sidebar
-    - id: gnts-sidebar-shell
-      name: gnts-sidebar-shell
-    - id: gnts-glass
-      name: gnts-glass
-    - id: dsh-model-default
-      name: dsh-model-default
-    - id: gnts-tunnel
-      name: gnts-tunnel
+# NOT here: an `insert:` block naming our own packages. They are listed in the profile's
+# bundle list, which is what mounts them, and inserting them here as well registered every
+# one of them twice — "duplicate loader entry id" for each. The boot tolerated it, but
+# dshmarket's trial validation does not: every update reported the composition as unable to
+# boot and rolled back, which is also how a saved provider block was lost.

@@ -76,9 +76,37 @@ export function seedProfile({ dshHome, resourcesPath, pluginsDir, log = () => {}
         const cleaned = stripPinnedBlocks(current, STALE_PINS)
         if (cleaned !== current) {
           writeFileSync(patch, cleaned)
-          log(`[seed] removed ${STALE_PINS.join(', ')} from the patch — a pinned entry cannot be edited`)
+          log(`[seed] removed stale pinned entries from the patch — a pinned entry cannot be edited`)
         }
         recordMigration(dshHome, UNPIN_MIGRATION)
+      }
+
+      // The same one-shot treatment for the other half of the duplicate-entry bug: our
+      // packages are in the profile's bundle list, which is what mounts them, so an
+      // `insert:` block naming them registered every one of them twice. The boot tolerated
+      // it; dshmarket's trial validation did not, so every update reported the composition
+      // as unable to boot and rolled back.
+      if (existsSync(patch) && !appliedMigrations(dshHome).has(DEDUPE_MIGRATION)) {
+        const current = readFileSync(patch, 'utf8')
+        const cleaned = stripDuplicateInserts(current, bundleNames(manifest))
+        if (cleaned !== current) {
+          writeFileSync(patch, cleaned)
+          log(`[seed] dropped an insert block for packages already in the bundle list — they were registered twice`)
+        }
+        recordMigration(dshHome, DEDUPE_MIGRATION)
+      }
+
+      // One more invariant, because dshmarket also writes this file: an entry id may appear
+      // once. Two rows with the same id are what its trial validation refuses, and it is the
+      // shape a bad update leaves behind. The first row wins; the rest are dropped.
+      if (existsSync(patch) && !appliedMigrations(dshHome).has(UNIQUE_IDS_MIGRATION)) {
+        const current = readFileSync(patch, 'utf8')
+        const cleaned = stripDuplicateEntryIds(current)
+        if (cleaned !== current) {
+          writeFileSync(patch, cleaned)
+          log(`[seed] dropped duplicate entry ids from the patch — an id may appear once`)
+        }
+        recordMigration(dshHome, UNIQUE_IDS_MIGRATION)
       }
     } else {
       log(`[seed] no ${PATCH} in resources — the profile will be empty`)
@@ -174,11 +202,98 @@ function isLink(p) {
   try { return lstatSync(p).isSymbolicLink() } catch { return false }
 }
 
+/**
+ * Keep only the first top-level `- id: <name>` block for each id. Duplicate ids are what
+ * dshmarket's trial validation refuses, and a file both we and it write can end up with
+ * them. The first occurrence wins, so a hand-written entry is never replaced by a later one.
+ */
+function stripDuplicateEntryIds(yaml) {
+  const lines = yaml.split('\n')
+  const out = []
+  const seen = new Set()
+  let i = 0
+  while (i < lines.length) {
+    const m = /^- id:\s*(\S+)\s*$/.exec(lines[i])
+    if (m !== null) {
+      let j = i + 1
+      const body = [lines[i]]
+      while (j < lines.length && (lines[j].trim() === '' || /^\s/.test(lines[j]))) {
+        body.push(lines[j])
+        j++
+      }
+      if (seen.has(m[1])) {
+        i = j
+        continue
+      }
+      seen.add(m[1])
+      out.push(...body)
+      i = j
+      continue
+    }
+    out.push(lines[i])
+    i++
+  }
+  return out.join('\n')
+}
+
+/** The profile's bundle list: the packages the loader mounts by name. */
+function bundleNames(manifestPath) {
+  try {
+    const d = JSON.parse(readFileSync(manifestPath, 'utf8'))
+    return new Set(d?.dsh?.profile?.bundles ?? [])
+  } catch {
+    return new Set()
+  }
+}
+
+/**
+ * Drop any top-level `insert:` block whose entries are all already in the profile's bundle
+ * list. Those entries are mounted by the bundle list, so inserting them as well registers
+ * each id twice. The rule is "already a bundle", not a list of our names: any block that
+ * duplicates the bundle list is wrong for the same reason.
+ */
+function stripDuplicateInserts(yaml, bundles) {
+  if (bundles.size === 0) return yaml
+  const lines = yaml.split('\n')
+  const out = []
+  let i = 0
+  while (i < lines.length) {
+    if (/^- insert:\s*$/.test(lines[i])) {
+      let j = i + 1
+      const body = []
+      while (j < lines.length && (lines[j].trim() === '' || /^\s/.test(lines[j]))) {
+        body.push(lines[j])
+        j++
+      }
+      const ids = body
+        .map((line) => /^\s+- id:\s*(\S+)\s*$/.exec(line))
+        .filter((m) => m !== null)
+        .map((m) => m[1])
+      if (ids.length > 0 && ids.every((id) => bundles.has(id))) {
+        i = j
+        continue
+      }
+    }
+    out.push(lines[i])
+    i++
+  }
+  return out.join('\n')
+}
+
 // Entries an older build pinned, and which therefore cannot be edited from the UI. Removed
 // by a one-shot migration rather than on every boot: the plugins write these same ids
 // themselves, so an unconditional strip would delete providers the user adds.
-const STALE_PINS = ['llm-pi-ai', 'dsh-market']
+//
+// Each matcher sees the whole block. `llm-pi-ai` is matched narrowly — only the stale empty
+// provider an old build wrote, which pointed at our own gateway and could not be removed —
+// because that id now holds the user's real providers and stripping one would be data loss.
+const STALE_PINS = {
+  'llm-pi-ai': (block) => block.indexOf('127.0.0.1:8080') !== -1 && /models:\s*\[\]/.test(block),
+  'dsh-market': () => true,
+}
 const UNPIN_MIGRATION = 'unpin-pinned-provider-entries'
+const DEDUPE_MIGRATION = 'drop-insert-blocks-already-in-the-bundle-list'
+const UNIQUE_IDS_MIGRATION = 'drop-duplicate-entry-ids'
 
 /** Migration ids already applied for this profile, recorded beside it. */
 function appliedMigrations(dshHome) {
@@ -201,32 +316,41 @@ function recordMigration(dshHome, id) {
 }
 
 /**
- * Remove top-level `- id: <name>` blocks for the given ids, along with the comment lines
- * immediately above them. The file is a hand-written overlay, so this walks lines rather
+ * Remove top-level `- id: <name>` blocks whose matcher accepts them, along with the comment
+ * lines immediately above. The file is a hand-written overlay, so this walks lines rather
  * than parsing YAML: an indented body ends at the next line that starts at column 0.
  */
-function stripPinnedBlocks(yaml, ids) {
+function stripPinnedBlocks(yaml, matchers) {
+  const lines = yaml.split('\n')
   const out = []
-  let pending = []
-  let skip = false
-  for (const line of yaml.split('\n')) {
-    if (/^-\s/.test(line)) skip = false
-    const m = /^- id:\s*(\S+)\s*$/.exec(line)
-    if (m && ids.includes(m[1])) {
-      skip = true
-      pending = []
-      continue
-    }
-    if (skip && (/^\s+\S/.test(line) || line.trim() === '')) continue
-    skip = false
+  let comments = []
+  let i = 0
+  while (i < lines.length) {
+    const line = lines[i]
     if (line.startsWith('#')) {
-      pending.push(line)
+      comments.push(line)
+      i++
       continue
     }
-    out.push(...pending, line)
-    pending = []
+    const m = /^- id:\s*(\S+)\s*$/.exec(line)
+    if (m !== null && matchers[m[1]] !== undefined) {
+      let j = i + 1
+      const body = [line]
+      while (j < lines.length && (lines[j].trim() === '' || /^\s/.test(lines[j]))) {
+        body.push(lines[j])
+        j++
+      }
+      if (matchers[m[1]](body.join('\n'))) {
+        comments = []
+        i = j
+        continue
+      }
+    }
+    out.push(...comments, line)
+    comments = []
+    i++
   }
-  out.push(...pending)
+  out.push(...comments)
   return out.join('\n')
 }
 
