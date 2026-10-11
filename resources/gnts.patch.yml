@@ -17,19 +17,9 @@
 - id: ui-settings-models
   disabled: true
 
-
-# One option in the Official group, off by default.
-- id: dsh-market
-  disabled: true
-
 # Offered in the Plugins page as an official extra, off until chosen.
 - id: gnts-passy-wallet
   disabled: true
-
-
-
-
-
 
 - id: llm-deepseek
   disabled: true
@@ -60,22 +50,16 @@
 - id: ui-settings-session-log
   disabled: true
 
-
 # ── mounted: our packages ───────────────────────────────────────────────────
 
-# A provider with no models. The harness falls back to its bundled DeepSeek route when
-# none is registered, and the model seat then shows it before any plugin can paint — that
-# is the flash. An empty provider keeps the catalog empty, so the seat says "Add Model"
-# from the first render and nothing unusable is ever offered. Providers without models are
-# dropped from the catalog, so this never appears as something to pick.
-- id: llm-pi-ai
-  name: "@deepseek-ai/dsh-llm-pi-ai"
-  config:
-    providers:
-      gnts:
-        api: openai-completions
-        baseURL: http://127.0.0.1:8080/v1
-        models: []
+# NOT here: any llm-pi-ai block, and any `- id: dsh-market` row. Both were pinned here at
+# some point, and a pinned entry cannot be edited from the UI — it answers "configuration is
+# overridden by a home patch" to every write. Pinning llm-pi-ai's providers key was worse:
+# it claimed the whole key, so Autodiscover could never save a provider, and the empty
+# "gnts" provider it left behind pointed at the gateway and could not be removed.
+#
+# The vendor bundles mount themselves with their own defaults. Autodiscover owns the
+# llm-pi-ai providers from here on.
 
 - insert:
     - id: gnts-autodiscover

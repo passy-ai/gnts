@@ -18,6 +18,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, symlinkSync, writeFil
 import { join } from 'node:path'
 
 const PATCH = 'gnts.patch.yml'
+const MIGRATIONS_FILE = '.gnts-migrations.json'
 const PROFILE_MANIFEST = 'gnts.profile.json'
 
 /**
@@ -56,12 +57,29 @@ export function seedProfile({ dshHome, resourcesPath, pluginsDir, log = () => {}
   const fresh = !existsSync(patch)
   mkdirSync(modules, { recursive: true })
 
-  // 1. the composition file, from the shipped copy
-  if (!existsSync(patch)) {
+  // 1. the composition file, from the shipped copy — and a one-shot repair of any stale
+  //    pin. A pinned entry cannot be edited from the UI: it answers "configuration is
+  //    overridden by a home patch" to every write. An older build pinned both `llm-pi-ai`
+  //    (which claimed the whole providers key, so Autodiscover could never save a provider)
+  //    and `dsh-market` (so the market could be neither installed nor removed). Those pins
+  //    survive an upgrade in the profile, so they are removed here — ONCE. The plugins
+  //    write these same ids themselves afterwards, so stripping them on every boot would
+  //    delete providers the user adds and revert their plugin choices.
+  {
     const from = join(resourcesPath, PATCH)
     if (existsSync(from)) {
-      writeFileSync(patch, readFileSync(from))
-      log(`[seed] profile patch installed`)
+      if (!existsSync(patch)) {
+        writeFileSync(patch, readFileSync(from))
+        log(`[seed] profile patch installed`)
+      } else if (!appliedMigrations(dshHome).has(UNPIN_MIGRATION)) {
+        const current = readFileSync(patch, 'utf8')
+        const cleaned = stripPinnedBlocks(current, STALE_PINS)
+        if (cleaned !== current) {
+          writeFileSync(patch, cleaned)
+          log(`[seed] removed ${STALE_PINS.join(', ')} from the patch — a pinned entry cannot be edited`)
+        }
+        recordMigration(dshHome, UNPIN_MIGRATION)
+      }
     } else {
       log(`[seed] no ${PATCH} in resources — the profile will be empty`)
     }
@@ -120,12 +138,96 @@ export function seedProfile({ dshHome, resourcesPath, pluginsDir, log = () => {}
     log(`[seed] no plugins at ${plugins} or ${pluginsDir}`)
   }
 
+  // 3b. dependencies the app ships itself rather than in plugins/ — dshmarket. The profile
+  //     resolves packages by name, so without a link here the harness logs
+  //     "dsh-market (dshmarket): failed to import" and the card never renders: it can be
+  //     neither installed nor removed, which reads as the market being broken. Linking the
+  //     shipped copy is enough — Node resolves the package's own requires from its real
+  //     path, so its transitive dependencies come along.
+  const shippedModules = join(resourcesPath, 'node_modules')
+  if (existsSync(manifest) && existsSync(shippedModules)) {
+    try {
+      const d = JSON.parse(readFileSync(manifest, 'utf8'))
+      for (const name of Object.keys(d.dependencies || {})) {
+        const target = join(modules, name)
+        if (existsSync(target) || isLink(target)) continue
+        const shipped = join(shippedModules, name)
+        if (!existsSync(shipped)) continue
+        try {
+          symlinkSync(shipped, target, 'dir')
+          linked++
+          log(`[seed] linked shipped dependency ${name}`)
+        } catch (e) {
+          log(`[seed] could not link ${name}: ${e.message}`)
+        }
+      }
+    } catch (e) {
+      log(`[seed] could not read the manifest to link dependencies: ${e.message}`)
+    }
+  }
+
   if (fresh || linked) log(`[seed] ${fresh ? 'new' : 'existing'} profile, ${linked} plugin(s) linked`)
   return { fresh, linked, profile: web }
 }
 
 function isLink(p) {
   try { return lstatSync(p).isSymbolicLink() } catch { return false }
+}
+
+// Entries an older build pinned, and which therefore cannot be edited from the UI. Removed
+// by a one-shot migration rather than on every boot: the plugins write these same ids
+// themselves, so an unconditional strip would delete providers the user adds.
+const STALE_PINS = ['llm-pi-ai', 'dsh-market']
+const UNPIN_MIGRATION = 'unpin-pinned-provider-entries'
+
+/** Migration ids already applied for this profile, recorded beside it. */
+function appliedMigrations(dshHome) {
+  try {
+    const d = JSON.parse(readFileSync(join(dshHome, MIGRATIONS_FILE), 'utf8'))
+    return new Set(Array.isArray(d?.applied) ? d.applied : [])
+  } catch {
+    return new Set()
+  }
+}
+
+function recordMigration(dshHome, id) {
+  try {
+    const applied = appliedMigrations(dshHome)
+    applied.add(id)
+    writeFileSync(join(dshHome, MIGRATIONS_FILE), JSON.stringify({ applied: [...applied] }, null, 2) + '\n')
+  } catch (e) {
+    // not fatal: the worst case is the migration runs again and strips a stale entry twice
+  }
+}
+
+/**
+ * Remove top-level `- id: <name>` blocks for the given ids, along with the comment lines
+ * immediately above them. The file is a hand-written overlay, so this walks lines rather
+ * than parsing YAML: an indented body ends at the next line that starts at column 0.
+ */
+function stripPinnedBlocks(yaml, ids) {
+  const out = []
+  let pending = []
+  let skip = false
+  for (const line of yaml.split('\n')) {
+    if (/^-\s/.test(line)) skip = false
+    const m = /^- id:\s*(\S+)\s*$/.exec(line)
+    if (m && ids.includes(m[1])) {
+      skip = true
+      pending = []
+      continue
+    }
+    if (skip && (/^\s+\S/.test(line) || line.trim() === '')) continue
+    skip = false
+    if (line.startsWith('#')) {
+      pending.push(line)
+      continue
+    }
+    out.push(...pending, line)
+    pending = []
+  }
+  out.push(...pending)
+  return out.join('\n')
 }
 
 function fileHasBundles(p) {
