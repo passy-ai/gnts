@@ -266,7 +266,8 @@ window.__ModuleLoader__.load({
 					notice = document.createElement("div");
 					notice.className = "gnts-seat-notice";
 					var text = document.createElement("span");
-					text.textContent = adding ? "No model added yet." : "No model selected yet.";
+					// An arrow rather than a full stop: it points at the link that follows.
+					text.textContent = adding ? "No model added yet \u2192" : "No model selected yet \u2192";
 					var link = document.createElement("button");
 					link.type = "button";
 					link.textContent = "Go to settings";
