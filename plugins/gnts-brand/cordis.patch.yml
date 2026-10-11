@@ -1,0 +1,10 @@
+# The gnts.dev brand.
+#
+# Installing this disables the stock brand plugin, which is what draws the whale
+# mark and the DeepSeek wordmark. We occupy the same two brand slots instead.
+- id: ui-brand-official
+  disabled: true
+
+- insert:
+    - id: gnts-brand
+      name: gnts-brand

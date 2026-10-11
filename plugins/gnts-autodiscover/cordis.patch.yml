@@ -1,0 +1,19 @@
+# gnts.dev Autodiscover — a custom Models settings page.
+#
+# Installing this disables the stock Models section, which this page replaces.
+# It also disables the stock DeepSeek provider: our deployments bring their own
+# providers, and DeepSeek arriving as a base default is what made it impossible to
+# remove from either the model selector or this page — unsetting the user layer
+# only reverts to the base, so the entry came straight back.
+- id: ui-settings-models
+  disabled: true
+
+- id: llm-deepseek
+  disabled: true
+
+- id: llm-deepseek-account
+  disabled: true
+
+- insert:
+    - id: gnts-autodiscover
+      name: gnts-autodiscover

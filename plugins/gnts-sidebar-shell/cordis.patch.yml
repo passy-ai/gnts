@@ -1,0 +1,11 @@
+# The gnts.dev left sidebar shell (workspace/session list, brand row, New
+# Session, settings foot). Installing this disables the stock ui-sidebar.
+#
+# Only change so far: the global panel rows are not rendered. Those icons
+# (plugins, schedules) sit above the workspace list and belong in Settings.
+- id: ui-sidebar
+  disabled: true
+
+- insert:
+    - id: gnts-sidebar-shell
+      name: gnts-sidebar-shell

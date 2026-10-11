@@ -1,0 +1,5 @@
+# Keeps the composer's model seat honest: "Add Model" when nothing is configured,
+# otherwise the selected model's name. Writes a label and nothing else.
+- insert:
+    - id: dsh-model-default
+      name: dsh-model-default

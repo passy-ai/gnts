@@ -1,0 +1,4 @@
+# gnts.dev model search — a search field in the model selector.
+- insert:
+    - id: gnts-model-search
+      name: gnts-model-search

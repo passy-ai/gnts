@@ -1,0 +1,16 @@
+# The gnts.dev sidebar frame.
+#
+# Disabling the stock row here is what makes this package self-contained: install
+# it and the original stops loading, so nothing has to be maintained in the
+# profile or in a bundle.
+#
+# The copy keeps the upstream module id on purpose. dsh-client-modules resolves
+# `dsh.client.inject` by module id, and fourteen packages inject
+# @deepseek-ai/dsh-client-ui-layout — a different id would leave all of them
+# waiting for a module that never loads.
+- id: ui-layout
+  disabled: true
+
+- insert:
+    - id: gnts-sidebar
+      name: gnts-sidebar

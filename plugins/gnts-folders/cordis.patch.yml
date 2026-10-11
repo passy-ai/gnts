@@ -1,0 +1,11 @@
+# The gnts.dev folders panel (files + terminal).
+#
+# Installing this package disables the stock right sidebar, so the swap needs no
+# profile or bundle edit. The copy registers our own package name and provides
+# the sidebarRight service, which is what the tab plugins wait on.
+- id: ui-sidebar-right
+  disabled: true
+
+- insert:
+    - id: gnts-folders
+      name: gnts-folders

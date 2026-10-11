@@ -1,0 +1,4 @@
+# gnts.dev glass mode — desktop-only transparency for the content column.
+- insert:
+    - id: gnts-glass
+      name: gnts-glass

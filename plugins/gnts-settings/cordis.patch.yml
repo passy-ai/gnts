@@ -1,0 +1,12 @@
+# The gnts.dev settings shell.
+#
+# Installing this disables the stock settings shell, so the swap needs no profile
+# or bundle edit. The copy registers our own package name; every settings section
+# from other packages registers into the settings.* slots this package declares,
+# so they follow automatically.
+- id: ui-settings-general
+  disabled: true
+
+- insert:
+    - id: gnts-settings
+      name: gnts-settings

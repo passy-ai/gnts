@@ -1,0 +1,11 @@
+# The gnts.dev plugins page.
+#
+# Installing this disables the stock ui-plugin-manager. The difference: it no
+# longer registers a sidebar panel icon — the page is a Settings section now, so
+# it appears in the settings list beside General, Models and the rest.
+- id: ui-plugin-manager
+  disabled: true
+
+- insert:
+    - id: gnts-plugins
+      name: gnts-plugins

@@ -1,0 +1,4 @@
+# gnts.dev Tunnel — the Cloudflare tunnel settings section.
+- insert:
+    - id: gnts-tunnel
+      name: gnts-tunnel

@@ -1,0 +1,4 @@
+# gnts.dev Pairing — device pairing and the QR/link flow, as a Settings section.
+- insert:
+    - id: gnts-pairing
+      name: gnts-pairing
