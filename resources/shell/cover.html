@@ -1,0 +1,17 @@
+    <style>
+      /* gnts: the first frame. This is the shell the harness serves, so it paints before any
+         module loads — a plugin cannot, which is why the vendor's boot page was visible
+         underneath our cover. Removed by gnts-brand once the composer is up. */
+      #gnts-boot{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:#151517}
+      body[data-ds-light-theme] #gnts-boot{background:#ffffff}
+      #gnts-boot .c{display:flex;flex-direction:column;align-items:center;gap:16px}
+      #gnts-boot .w{font:600 16px/24px -apple-system,BlinkMacSystemFont,'Geist','Segoe UI',sans-serif;letter-spacing:.08em;color:#f9fafb}
+      body[data-ds-light-theme] #gnts-boot .w{color:#0f1115}
+      #gnts-boot .h{font:400 12px/18px -apple-system,BlinkMacSystemFont,'Geist','Segoe UI',sans-serif;color:#81858c}
+      #gnts-boot .s{position:relative;width:20px;height:20px;border-radius:50%;border:2px solid rgba(255,255,255,.12);animation:gnts-spin .8s linear infinite}
+      body[data-ds-light-theme] #gnts-boot .s{border-color:rgba(0,0,0,.10)}
+      #gnts-boot .s:after{content:'';position:absolute;inset:-2px;border-radius:inherit;background:conic-gradient(#f9fafb 72deg,transparent 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 0);mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 0)}
+      body[data-ds-light-theme] #gnts-boot .s:after{background:conic-gradient(#0f1115 72deg,transparent 0)}
+      @keyframes gnts-spin{to{transform:rotate(360deg)}}
+    </style>
+    <div id="gnts-boot"><div class="c"><div class="w">gnts.</div><div class="s"></div><div class="h">Loading plugins…</div></div></div>

@@ -24,6 +24,26 @@ const PROFILE_MANIFEST = 'gnts.profile.json'
  * @param {{ dshHome: string, resourcesPath: string, pluginsDir: string, log?: (m: string) => void }} opts
  */
 export function seedProfile({ dshHome, resourcesPath, pluginsDir, log = () => {} }) {
+  // The shell the harness serves is inside node_modules, so it is not version-controlled
+  // and a fresh checkout would not have the boot cover. Apply it here instead: the cover
+  // has to be in the shell to paint before any module loads, and a plugin cannot do that.
+  try {
+    const shell = join(dshHome, '..', '..', 'node_modules', '@deepseek-ai', 'dsh-web-frontend', 'dist', 'index.html')
+    const cover = join(resourcesPath, 'shell', 'cover.html')
+    const candidates = [shell, join(resourcesPath, 'node_modules', '@deepseek-ai', 'dsh-web-frontend', 'dist', 'index.html')]
+    for (const file of candidates) {
+      if (!existsSync(file) || !existsSync(cover)) continue
+      const html = readFileSync(file, 'utf8')
+      if (html.indexOf('gnts-boot') !== -1) break
+      const inject = readFileSync(cover, 'utf8')
+      const style = inject.split('<div id="gnts-boot"')[0]
+      const mark = '<div id="gnts-boot"' + inject.split('<div id="gnts-boot"')[1]
+      writeFileSync(file, html.replace('  </head>', style + '  </head>').replace('    <div id="root"></div>', mark + '    <div id="root"></div>'))
+      log('[seed] boot cover applied to the harness shell')
+      break
+    }
+  } catch (e) { log('[seed] could not apply the shell cover: ' + e.message) }
+
   // The app ships its own plugins; a local checkout is the development fallback.
   const shipped = join(resourcesPath, 'plugins')
   const plugins = existsSync(shipped) ? shipped : pluginsDir
