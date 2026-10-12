@@ -1,12 +1,12 @@
 # The gnts.dev plugin collection
 
-Copied here so one checkout holds everything: the app in `src/`, and every plugin the
-profile mounts, with the consolidated composition in `cordis.patch.yml`.
+The app in `src/`, and every plugin its profile mounts, with the consolidated
+composition in `cordis.patch.yml` — one checkout, one source of truth.
 
-**This copy is provenance, not a live link.** The running app reads its plugins from
-`~/.local/dsh-plugins/plugins` (development) or from its own `Resources/plugins`
-(packaged), and seeds the profile from the latter. Editing this directory alone changes
-nothing at runtime — see `../docs/CONTEXT.md`.
+**This directory is the source of truth.** The build packages it into the app's
+`Resources/plugins`, and the app seeds its profile from there, so editing a plugin here and
+rebuilding is all it takes. `GNTS_PLUGINS_DIR` overrides it if you want to run against a
+different tree. There is no second copy to keep in step — see `../docs/CONTEXT.md`.
 
 ## What is here
 

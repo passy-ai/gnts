@@ -315,7 +315,7 @@ async function boot() {
   seedProfile({
     dshHome: paths.dshHome,
     resourcesPath,
-    pluginsDir: process.env.GNTS_PLUGINS_DIR || join(homedir(), '.local', 'dsh-plugins', 'plugins'),
+    pluginsDir: process.env.GNTS_PLUGINS_DIR || join(app.getAppPath(), 'plugins'),
     log: (m) => console.log(m),
   })
 

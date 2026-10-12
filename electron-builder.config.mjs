@@ -1,4 +1,3 @@
-import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 /** Packaging. Two targets: macOS (dmg) and Windows (nsis), matching what we ship. */
@@ -34,10 +33,11 @@ export default {
     // The boot cover, applied to the harness shell by the seed. The shell is inside
     // node_modules, so it is not in the repo and a fresh checkout would have no cover.
     { from: 'resources/shell', to: 'shell' },
-    // The gnts.dev plugins. Shipping them makes the dmg self-contained: a machine with
-    // no ~/.local/dsh-plugins still gets the full UI, because the app links its own copy
+    // Our plugins, taken from the repo rather than a working directory: one source of truth,
+    // so a build cannot ship a plugin the committed tree does not have. Shipping them also
+    // makes the dmg self-contained, because the app links its own copy
     // into the profile it seeds on first run.
-    { from: join(homedir(), '.local', 'dsh-plugins', 'plugins'), to: 'plugins' },
+    { from: 'plugins', to: 'plugins' },
   ],
   asar: true,
   npmRebuild: false,
