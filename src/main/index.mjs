@@ -1,5 +1,5 @@
 /**
- * gnts.dev — the desktop shell.
+ * gnts — the desktop shell.
  *
  * The app owns one window, one Harness process and one profile. Everything it
  * shows is Harness's own web UI; everything it adds is a preload bridge.
@@ -16,6 +16,14 @@ import { fileURLToPath } from 'node:url'
 import { HarnessRuntime } from './harness.mjs'
 import { resolvePaths } from './paths.mjs'
 import { seedProfile } from './seed.mjs'
+
+// The visible name is `gnts`. Electron derives the data and log directories from the app
+// name, and this one has held every install's settings, sessions and profile since the first
+// build, so pinning them is what keeps a rename from orphaning all of it. The in-app wordmark
+// stays `gnts.`; that is a plugin's business, not the app's.
+app.setName('gnts')
+app.setPath('userData', join(app.getPath('appData'), 'gnts.dev'))
+if (process.platform === 'darwin') app.setPath('logs', join(homedir(), 'Library', 'Logs', 'gnts.dev'))
 
 const here = dirname(fileURLToPath(import.meta.url))
 

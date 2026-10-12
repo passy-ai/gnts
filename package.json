@@ -1,6 +1,6 @@
 {
   "name": "gnts-dev",
-  "productName": "gnts.dev",
+  "productName": "gnts",
   "version": "0.1.0",
   "private": true,
   "description": "Our desktop layer for DeepSeek Harness.",
