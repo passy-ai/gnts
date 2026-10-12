@@ -77,6 +77,20 @@ window.__ModuleLoader__.load({
 				var useEffect = React.useEffect;
 				var useState = React.useState;
 
+				// Line icons for the Passy links: a key, a document and a grid. Drawn rather than
+				// borrowed so they inherit the surrounding colour and stay crisp at 14px.
+				var PASSY_ICONS = {
+					key: ["M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"],
+					doc: ["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z", "M14 2v6h6", "M8 13h8", "M8 17h5"],
+					grid: ["M3 3h7v7H3z", "M14 3h7v7h-7z", "M14 14h7v7h-7z", "M3 14h7v7H3z"],
+				};
+				function passyIcon(name) {
+					var paths = PASSY_ICONS[name] || [];
+					return cE("svg", { className: "gnts-ad-ico", width: 14, height: 14, viewBox: "0 0 24 24", fill: "none",
+						stroke: "currentColor", strokeWidth: 1.7, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true" },
+						paths.map(function (d, i) { return cE("path", { key: i, d: d }); }));
+				}
+
 				ctx.effect && ctx.effect(function () {
 					// gnts: a second registration of the same namespace throws, and the outer
 					// catch swallowed it — which skipped everything after it in apply. Guard it.
@@ -240,7 +254,7 @@ window.__ModuleLoader__.load({
 					} catch (e) { return undefined; }
 				}
 
-				var passyCss = ".gnts-ad-passy{display:inline-flex;align-items:center;gap:10px;cursor:pointer;user-select:none;padding:2px 0}.gnts-ad-passy-input{position:absolute;opacity:0;width:0;height:0;pointer-events:none}.gnts-ad-passy-box{width:16px;height:16px;flex:0 0 16px;border-radius:5px;border:1px solid var(--dsw-alias-border-l3);display:inline-flex;align-items:center;justify-content:center;transition:background .14s ease,border-color .14s ease}.gnts-ad-passy:hover .gnts-ad-passy-box{border-color:#4e75df}.gnts-ad-passy-input:checked+.gnts-ad-passy-box{background:#4e75df;border-color:#4e75df}.gnts-ad-passy-input:focus-visible+.gnts-ad-passy-box{outline:2px solid #4e75df;outline-offset:2px}.gnts-ad-passy-tick{color:#fff;font-size:11px;line-height:1;font-weight:600}.gnts-ad-passy-text{font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary)}.gnts-ad-passy-links{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:3px}.gnts-ad-passy-links li{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}";
+				var passyCss = ".gnts-ad-passy{display:inline-flex;align-items:center;gap:10px;cursor:pointer;user-select:none;padding:2px 0}.gnts-ad-passy-input{position:absolute;opacity:0;width:0;height:0;pointer-events:none}.gnts-ad-passy-box{width:16px;height:16px;flex:0 0 16px;border-radius:5px;border:1px solid var(--dsw-alias-border-l3);display:inline-flex;align-items:center;justify-content:center;transition:background .14s ease,border-color .14s ease}.gnts-ad-passy:hover .gnts-ad-passy-box{border-color:#4e75df}.gnts-ad-passy-input:checked+.gnts-ad-passy-box{background:#4e75df;border-color:#4e75df}.gnts-ad-passy-input:focus-visible+.gnts-ad-passy-box{outline:2px solid #4e75df;outline-offset:2px}.gnts-ad-passy-tick{color:#fff;font-size:11px;line-height:1;font-weight:600}.gnts-ad-passy-text{font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary)}.gnts-ad-passy-links{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:7px}.gnts-ad-passy-links li{display:flex;align-items:center;gap:7px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.gnts-ad-ico{flex:0 0 14px;color:var(--dsw-alias-label-tertiary)}.gnts-ad-arrow{color:var(--dsw-alias-label-tertiary);font-size:12px}.gnts-ad-passy-links li{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}";
 				if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=\"gnts-autodiscover/passy.css\"]") === null) {
 					var passyTag = document.createElement("style");
 					passyTag.setAttribute("data-plugin-css", "gnts-autodiscover/passy.css");
@@ -922,11 +936,14 @@ var tag = document.createElement("style");
 									cE("span", { className: "gnts-ad-passy-box" }, passy ? cE("span", { className: "gnts-ad-passy-tick" }, "\u2713") : null),
 									cE("span", { className: "gnts-ad-passy-text" }, "Use Passy")
 								),
-								cE("ul", { className: "gnts-ad-passy-links" },
-									cE("li", null, "Get your keys at \u2192 ", cE("a", { className: "gnts-ad-link", href: "https://dash.passy.ai", target: "_blank", rel: "noreferrer noopener" }, "Dashboard")),
-									cE("li", null, "Read more at ", cE("a", { className: "gnts-ad-link", href: "https://passy.ai/docs", target: "_blank", rel: "noreferrer noopener" }, "Docs")),
-									cE("li", null, "See all available ", cE("a", { className: "gnts-ad-link", href: "https://passy.ai/models", target: "_blank", rel: "noreferrer noopener" }, "Models"))
-								)
+								passy ? cE("ul", { className: "gnts-ad-passy-links" },
+								cE("li", null, passyIcon("key"), "Get your keys at ", cE("span", { className: "gnts-ad-arrow" }, "\u2192"), " ",
+									cE("a", { className: "gnts-ad-link", href: "https://dash.passy.ai", target: "_blank", rel: "noreferrer noopener" }, "Dashboard")),
+								cE("li", null, passyIcon("doc"), "Read more at ", cE("span", { className: "gnts-ad-arrow" }, "\u2192"), " ",
+									cE("a", { className: "gnts-ad-link", href: "https://passy.ai/docs", target: "_blank", rel: "noreferrer noopener" }, "Docs")),
+								cE("li", null, passyIcon("grid"), "See all available ", cE("span", { className: "gnts-ad-arrow" }, "\u2192"), " ",
+									cE("a", { className: "gnts-ad-link", href: "https://passy.ai/models", target: "_blank", rel: "noreferrer noopener" }, "Models"))
+							) : null
 							),
 						cE("div", { className: "zGbnIq_field" },
 							cE("label", { className: "zGbnIq_fieldLabel" }, "Base URL"),
