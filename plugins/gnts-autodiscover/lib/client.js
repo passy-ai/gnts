@@ -516,13 +516,23 @@ var tag = document.createElement("style");
 						if (v && v !== displayName) persist({ displayName: v });
 					}
 
-					// credential dot: apiKeyEnv ref, else derived provider ref
+					// Credential dot: apiKeyEnv ref, else the derived provider ref.
+					//
+					// It used to show red on every reload for a provider that works. While the stored
+					// profile is still loading, `entry` is absent, so the derived ref is the wrong one
+					// and the lookup answers "not configured". Unknown now stays unknown, and a failed
+					// lookup is not evidence that a key is missing.
 					useEffect(function () {
+						if (loading) { setDot(null); return undefined; }
 						var ref = (entry && entry.apiKeyEnv) || deriveKeyRef(prov.provider);
+						var cancelled = false;
 						ctx.remote.credentials.describe([ref]).then(function (r) {
-							setDot(r && r.ok && r.value && r.value[ref] && r.value[ref].configured === true);
-						}).catch(function () { setDot(false); });
-					}, [prov.provider, entry && entry.apiKeyEnv]);
+							if (cancelled) return;
+							var v = r && r.ok && r.value && r.value[ref];
+							setDot(v && typeof v.configured === "boolean" ? v.configured === true : null);
+						}).catch(function () { if (!cancelled) setDot(null); });
+						return function () { cancelled = true; };
+					}, [prov.provider, entry && entry.apiKeyEnv, loading]);
 
 
 
@@ -657,6 +667,7 @@ var tag = document.createElement("style");
 						cE("div", { className: "zGbnIq_rowHead", style: { cursor: "pointer", flexWrap: "wrap" },
 							onClick: function () { setOpen(!open); } },
 							cE("div", { className: "zGbnIq_rowIdentity", style: { flex: 1, minWidth: 0 } },
+								cE("span", { className: "zGbnIq_credentialDot" + (dot === null ? "" : dot ? " zGbnIq_credentialDotConfigured" : " zGbnIq_credentialDotMissing"), title: dot === null ? "" : (dot === true ? "key configured" : "no key configured") }),
 								cE("input", { className: "zGbnIq_rowName", type: "text", value: nameDraft, spellCheck: false,
 									style: { background: "transparent", borderRadius: 6, padding: "1px 0 1px 4px", margin: "-1px 0 -1px -4px", font: "inherit",
 										width: nameWidth(nameDraft) + "px", maxWidth: "100%", flex: "0 1 auto", minWidth: 0,
@@ -666,7 +677,6 @@ var tag = document.createElement("style");
 									onBlur: function () { setFocused(false); saveName(); },
 									onChange: function (e) { setNameDraft(e.target.value); },
 									onKeyDown: function (e) { if (e.key === "Enter") e.target.blur(); } }),
-								cE("span", { className: "zGbnIq_credentialDot" + (dot === null ? "" : dot ? " zGbnIq_credentialDotConfigured" : " zGbnIq_credentialDotMissing"), title: dot === null ? "" : (dot === true ? "key configured" : "no key configured") }),
 								apiTag ? cE("span", { className: "zGbnIq_rowTag" }, apiTag) : null
 							),
 							cE("div", { className: "zGbnIq_rowActions" },
