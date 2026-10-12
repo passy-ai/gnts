@@ -524,8 +524,6 @@ var tag = document.createElement("style");
 					var query = queryState[0], setQuery = queryState[1];
 					var showPathState = useState(false);
 					var showPath = showPathState[0], setShowPath = showPathState[1];
-					var dotState = useState(null);      // null unknown, true ok, false missing
-					var dot = dotState[0], setDot = dotState[1];
 					var nameDraftState = useState(displayName);
 					var nameDraft = nameDraftState[0], setNameDraft = nameDraftState[1];
 					var focusedState = useState(false);
@@ -537,25 +535,6 @@ var tag = document.createElement("style");
 						var v = nameDraft.trim();
 						if (v && v !== displayName) persist({ displayName: v });
 					}
-
-					// Credential dot: apiKeyEnv ref, else the derived provider ref.
-					//
-					// It used to show red on every reload for a provider that works. While the stored
-					// profile is still loading, `entry` is absent, so the derived ref is the wrong one
-					// and the lookup answers "not configured". Unknown now stays unknown, and a failed
-					// lookup is not evidence that a key is missing.
-					useEffect(function () {
-						if (loading) { setDot(null); return undefined; }
-						var ref = (entry && entry.apiKeyEnv) || deriveKeyRef(prov.provider);
-						var cancelled = false;
-						ctx.remote.credentials.describe([ref]).then(function (r) {
-							if (cancelled) return;
-							var v = r && r.ok && r.value && r.value[ref];
-							setDot(v && typeof v.configured === "boolean" ? v.configured === true : null);
-						}).catch(function () { if (!cancelled) setDot(null); });
-						return function () { cancelled = true; };
-					}, [prov.provider, entry && entry.apiKeyEnv, loading]);
-
 
 
 					function persist(partial) {
@@ -689,7 +668,6 @@ var tag = document.createElement("style");
 						cE("div", { className: "zGbnIq_rowHead", style: { cursor: "pointer", flexWrap: "wrap" },
 							onClick: function () { setOpen(!open); } },
 							cE("div", { className: "zGbnIq_rowIdentity", style: { flex: 1, minWidth: 0 } },
-								cE("span", { className: "zGbnIq_credentialDot" + (dot === null ? "" : dot ? " zGbnIq_credentialDotConfigured" : " zGbnIq_credentialDotMissing"), title: dot === null ? "" : (dot === true ? "key configured" : "no key configured") }),
 								cE("input", { className: "zGbnIq_rowName", type: "text", value: nameDraft, spellCheck: false,
 									style: { background: "transparent", borderRadius: 6, padding: "1px 0 1px 4px", margin: "-1px 0 -1px -4px", font: "inherit",
 										width: nameWidth(nameDraft) + "px", maxWidth: "100%", flex: "0 1 auto", minWidth: 0,
@@ -722,7 +700,7 @@ var tag = document.createElement("style");
 								),
 								cE("div", { className: "zGbnIq_field" },
 									cE("label", { className: "zGbnIq_fieldLabel" }, "API key (optional)"),
-									cE("input", { className: "zGbnIq_input", type: "password", value: keyVal, placeholder: dot === true ? "Key saved. Paste only to override" : "Paste key to discover models\u2026",
+									cE("input", { className: "zGbnIq_input", type: "password", value: keyVal, placeholder: "Paste key to discover models\u2026",
 										onChange: function (e) { setKey(e.target.value); },
 										onKeyDown: function (e) { if (e.key === "Enter") discover(urlVal, keyVal, pathVal, ""); } })
 								),
