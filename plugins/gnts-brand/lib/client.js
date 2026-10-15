@@ -43,6 +43,14 @@ window.__ModuleLoader__.load({
 					// beside it are flex:none so they are never squeezed by it.
 					".wSkVaW_crumbs{flex:1 1 auto;min-width:0;}" +
 					".wSkVaW_crumbCurrent{max-width:none!important;}" +
+					// Full screen and the browser have no window controls to clear, so the wordmark
+					// belongs at the left with the toggle at the right. The stock rules bunch both
+					// against the right edge and wait on `[data-fullscreen]`, which nothing in the
+					// harness ever sets; the app sets it from the window's own state.
+					"[data-fullscreen] .hHd-Xa_topStrip," +
+					"html:not(.gn-desktop-window) .hHd-Xa_root:not(.hHd-Xa_collapsed) .hHd-Xa_logoRow{justify-content:space-between!important;}" +
+					"[data-fullscreen] .gnts-leading-brand," +
+					"html:not(.gn-desktop-window) .gnts-leading-brand{margin-right:0;}" +
 					// the tag: black, sharp corners, white text, Geist, loader metrics
 					"@font-face{font-family:'Geist';font-style:normal;font-weight:400;font-display:swap;" +
 						"src:url('https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/Geist-Regular.woff2') format('woff2');}" +

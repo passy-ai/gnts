@@ -27,6 +27,14 @@ function markPlatform() {
 markPlatform()
 document.addEventListener('DOMContentLoaded', markPlatform, { once: true })
 
+// Full screen hides the window controls. The harness has styles waiting on
+// `[data-fullscreen]` — the brand strip moves to the left — and nothing in it ever set the
+// attribute, so the main process pushes the window's own state here.
+ipcRenderer.on('gnts:fullscreen', (_event, on) => {
+  const root = document.documentElement
+  if (root) root.toggleAttribute('data-fullscreen', on === true)
+})
+
 /**
  * The native directory picker. Harness's `host-directory-picker-auto` keeps the
  * stock picker row active when a native backend is present, so exposing this is

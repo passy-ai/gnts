@@ -220,6 +220,17 @@ function createWindow() {
 
   created.once('ready-to-show', () => created.show())
 
+  // Full screen hides the window controls, and the harness has styles waiting on
+  // `[data-fullscreen]` — the brand strip moves left and the leading seat drops its
+  // traffic-light clearance — but nothing in the harness ever sets the attribute. Full
+  // screen is the window's own state, so it is reported from here.
+  const reportFullscreen = () => {
+    if (!created.isDestroyed()) created.webContents.send('gnts:fullscreen', created.isFullScreen())
+  }
+  created.on('enter-full-screen', reportFullscreen)
+  created.on('leave-full-screen', reportFullscreen)
+  created.webContents.on('did-finish-load', reportFullscreen)
+
   // A way into the renderer without a menu item: the window has no default
   // shortcut for it, and page errors otherwise only reach the log.
   created.webContents.on('before-input-event', (event, input) => {
