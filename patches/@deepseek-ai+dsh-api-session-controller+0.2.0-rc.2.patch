@@ -1,0 +1,27 @@
+diff --git a/node_modules/@deepseek-ai/dsh-api-session-controller/lib/client.js b/node_modules/@deepseek-ai/dsh-api-session-controller/lib/client.js
+index 1ae21e3..56b8da7 100644
+--- a/node_modules/@deepseek-ai/dsh-api-session-controller/lib/client.js
++++ b/node_modules/@deepseek-ai/dsh-api-session-controller/lib/client.js
+@@ -1720,6 +1720,7 @@ window.__ModuleLoader__.load({
+ 				if (this.blankBit) this.firstPromptPendingTurn = true;
+ 				this.notifier.markDirty();
+ 				let result;
++				try {
+ 				if (this.address === void 0) {
+ 					const clientTimeZone = resolvedClientTimeZone();
+ 					result = await this.remote.session.prompt({
+@@ -1749,6 +1750,14 @@ window.__ModuleLoader__.load({
+ 						value: { accepted: true }
+ 					} : routed;
+ 				}
++				} catch (error) {
++					/* An aborted admission throws instead of returning {ok:false}, and the echo was only
++					 * retired on a returned failure. A queued echo therefore survived the stop button and
++					 * stayed as a dead "Sending…" row with edit, remove and steer all disabled until the
++					 * next turn happened to consume it. Retire it here too. */
++					if (requestId !== void 0) this.retireFailedSubmission(requestId);
++					throw error;
++				}
+ 				if (!result.ok) {
+ 					if (requestId !== void 0) this.retireFailedSubmission(requestId);
+ 					this.promptError = {
