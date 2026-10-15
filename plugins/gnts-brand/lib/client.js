@@ -32,6 +32,17 @@ window.__ModuleLoader__.load({
 				var css = ".gnts-boot{position:fixed;inset:0;z-index:2000;height:100%;display:grid;place-items:center;background-color:var(--dsw-alias-bg-base,#151517);transition:opacity .3s var(--ds-ease-in-out)}.gnts-boot-out{display:none!important;opacity:0;pointer-events:none}.gnts-boot-card{display:flex;flex-direction:column;align-items:center;gap:16px}.gnts-boot-wordmark{font-family:'Geist','Geist Sans',-apple-system,BlinkMacSystemFont,sans-serif;font-size:16px;line-height:24px;font-weight:600;letter-spacing:.08em;color:var(--dsw-alias-label-primary)}.gnts-boot-hint{font-family:'Geist','Geist Sans',-apple-system,BlinkMacSystemFont,sans-serif;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}.gnts-boot-spinner{position:relative;width:20px;height:20px;border-radius:50%;border:2px solid var(--dsw-alias-border-l2);animation:gnts-boot-spin .8s linear infinite}.gnts-boot-spinner:after{content:'';position:absolute;inset:-2px;border-radius:inherit;background:conic-gradient(var(--dsw-alias-label-primary) 72deg,transparent 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 0);mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 0)}@keyframes gnts-boot-spin{to{transform:rotate(360deg)}}" +
 					".pXSMma_previewBadge{display:none!important;}" +   // hero "Preview"
 					".pXSMma_fishHitbox{display:none!important;}" +           // hero whale
+					// Phone widths: the background-jobs chip lives in the session header's action area
+					// (dsh-client-ui-jobs, `QsffPG_root`) and never shrinks, so on a narrow window it
+					// takes the room the chat title needs. Hidden there; the desktop keeps it.
+					"@media (max-width:768px){.QsffPG_root{display:none!important;}}" +
+					// The session header breadcrumb caps every segment at 220px
+					// (`.wSkVaW_crumb{max-width:220px}`), and the chat's own title is one of those
+					// segments, so it ellipsised long before the row ran out of room. Ancestors keep
+					// the cap; the current title may use whatever the row has left, and the chips
+					// beside it are flex:none so they are never squeezed by it.
+					".wSkVaW_crumbs{flex:1 1 auto;min-width:0;}" +
+					".wSkVaW_crumbCurrent{max-width:none!important;}" +
 					// the tag: black, sharp corners, white text, Geist, loader metrics
 					"@font-face{font-family:'Geist';font-style:normal;font-weight:400;font-display:swap;" +
 						"src:url('https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/Geist-Regular.woff2') format('woff2');}" +
