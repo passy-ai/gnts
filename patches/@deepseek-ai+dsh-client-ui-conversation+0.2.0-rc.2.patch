@@ -1,0 +1,62 @@
+diff --git a/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js b/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js
+index 7f3f791..dc203de 100644
+--- a/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js
++++ b/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js
+@@ -15372,7 +15372,7 @@ window.__ModuleLoader__.load({
+ 		* collapsible count header; an empty queue renders nothing. Local queued submissions
+ 		* show sending status and disabled actions until their Host queue rows arrive.
+ 		*/
+-		function QueueDock({ useSession, useProjection, updateQueue, notify, loadImage, t }) {
++		function QueueDock({ useSession, useProjection, updateQueue, notify, loadImage, sendNow, t }) {
+ 			const inbox = useProjection("inbox");
+ 			const pendingSubmissions = useSession((s) => s.pendingSubmissions);
+ 			const queue = (0, react.useMemo)(() => {
+@@ -15469,6 +15469,10 @@ window.__ModuleLoader__.load({
+ 						children: [listVisible && queue.map((row) => {
+ 							const attachments = queueAttachments(row.content);
+ 							const text = textOf(row.content);
++							// Sending a queued row into an idle agent goes through the composer send, which
++							// carries text only. A row with images or files keeps the arrow disabled rather
++							// than quietly dropping its content.
++							const canSendNow = sendNow !== void 0 && text !== null;
+ 							return (0, react_jsx_runtime.jsxs)("li", {
+ 								className: QueueDock_module_css_default.row,
+ 								children: [
+@@ -15581,15 +15585,25 @@ window.__ModuleLoader__.load({
+ 												label: t("queue.steer"),
+ 												side: "bottom",
+ 												delayMs: 500,
+-												disabled: !running,
++												disabled: !running && !canSendNow,
+ 												children: (0, react_jsx_runtime.jsx)("button", {
+ 													type: "button",
+ 													className: QueueDock_module_css_default.action,
+ 													"aria-label": t("queue.steer"),
+-													title: running ? void 0 : t("queue.steer.unavailable"),
+-													disabled: busy !== null || !running,
++													title: running || canSendNow ? void 0 : t("queue.steer.unavailable"),
++													disabled: busy !== null || (!running && !canSendNow),
+ 													onClick: () => {
+-														applyAction(row.id, { kind: "steer" }, t("queue.steerFailed"));
++														if (running) {
++															applyAction(row.id, { kind: "steer" }, t("queue.steerFailed"));
++															return;
++														}
++														if (!canSendNow) return;
++														// Leave the queue before sending: the send wakes the driver, and a wake started
++														// while this row is still queued claims it and delivers the same text twice.
++														applyAction(row.id, { kind: "remove" }, t("queue.removeFailed")).then((removed) => {
++															if (!removed) return;
++															return sendNow(text);
++														}).catch(() => notify("error", t("queue.steerFailed")));
+ 													},
+ 													children: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconSendOutlineRegular, {})
+ 												})
+@@ -15686,6 +15700,7 @@ window.__ModuleLoader__.load({
+ 						if (conversation === void 0) throw new Error("queue dock: conversation service unavailable");
+ 						return {
+ 							updateQueue: (itemId, action) => conversation.updateQueue(itemId, action),
++							sendNow: (text) => conversation.send(text),
+ 							notify: (level, text) => {
+ 								conversation.input.for(actx).notify(level, text);
+ 							},

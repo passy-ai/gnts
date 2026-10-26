@@ -23,12 +23,14 @@ window.__ModuleLoader__.load({
 
 		var NS = "agent-default-model";
 		var SEAT_ATTR = "data-dsh-model-seat";
+		// Set on the seat's label span while its text is the vendor's own fallback.
+		var HOLD_ATTR = "data-gnts-seat-hold";
 
 		// Safety net for the mobile composer: if a future build stops rendering the
 		// label span (below), the button itself must still clip instead of wrapping
 		// a long model name out of the card. Inert while the span exists, and
 		// desktop-scoped off so the desktop layout is untouched.
-		var CSS = ".gnts-seat-notice{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:1300;display:inline-flex;align-items:center;gap:10px;padding:10px 14px;border-radius:999px;background:var(--dsw-alias-bg-layer-2);box-shadow:var(--dsw-elevation-prominent);font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary)}" + ".gnts-seat-notice button{border:none;background:0 0;padding:0;cursor:pointer;color:#4e75df;text-decoration:underline;text-underline-offset:2px;font:inherit}" + "@media (max-width:768px){[" + SEAT_ATTR + "]{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}";
+		var CSS = ".gnts-seat-notice{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:1300;display:inline-flex;align-items:center;gap:10px;padding:10px 14px;border-radius:999px;background:var(--dsw-alias-bg-layer-2);box-shadow:var(--dsw-elevation-prominent);font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary)}" + ".gnts-seat-notice button{border:none;background:0 0;padding:0;cursor:pointer;color:#4e75df;text-decoration:underline;text-underline-offset:2px;font:inherit}" + "@media (max-width:768px){[" + SEAT_ATTR + "]{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}" + "[" + HOLD_ATTR + "]{visibility:hidden!important}";
 
 		function apply(ctx) {
 			try {
@@ -170,7 +172,87 @@ window.__ModuleLoader__.load({
 					return label === null ? button : label;
 				}
 
+				/** Model names the trigger may honestly carry: the catalog's, and the config's behind it. */
+				var catalogNames = null;
+				var holdText = null;
+				var holdAt = 0;
+				var HOLD_FOR = 4000;
+				var watched = null;
+
+				function vouched(text) {
+					if (text === "" || text === "Select Model" || text === "Add Model") return true;
+					if (catalogNames !== null && catalogNames.indexOf(text) !== -1) return true;
+					try {
+						var snap = mirror.namespace("llm-pi-ai");
+						var providers = (snap && snap.value && snap.value.providers) || {};
+						for (var name in providers) {
+							if (!Object.prototype.hasOwnProperty.call(providers, name)) continue;
+							var models = (providers[name] && providers[name].models) || [];
+							for (var i = 0; i < models.length; i++) {
+								if (models[i] && models[i].name === text) return true;
+							}
+						}
+					} catch (e) {}
+					return false;
+				}
+
+				/**
+				 * Keep the vendor's own words out of sight until they are words we can vouch for: a
+				 * model name from the catalog (or the config behind it), or our own placeholder.
+				 *
+				 * The trigger paints a raw `provider/model` whenever its catalog is between states,
+				 * and "Loading models…" before that. React paints those, not us — no write of ours
+				 * can pre-empt them, but a hidden label can, and `visibility` keeps the box (and so
+				 * the trigger's width) intact. Each new text is held for at most HOLD_FOR, so a
+				 * label that never turns honest is shown late rather than lost.
+				 */
+				function hold() {
+					var button = seat();
+					if (button === null) return;
+					var label = seatLabel(button);
+					// With no label span the text is the button's own: hiding that would take the
+					// icon and chevron with it, so leave such a build alone.
+					if (label === button) return;
+					var text = (label.textContent || "").trim();
+					if (text !== holdText) { holdText = text; holdAt = Date.now(); }
+					if (!vouched(text) && Date.now() - holdAt < HOLD_FOR) label.setAttribute(HOLD_ATTR, "1");
+					else if (label.hasAttribute(HOLD_ATTR)) label.removeAttribute(HOLD_ATTR);
+				}
+
+				/** Every model name the catalog last answered with. */
+				function catalogModelNames(catalog) {
+					var names = [];
+					var groups = (catalog && catalog.groups) || [];
+					for (var i = 0; i < groups.length; i++) {
+						var models = groups[i].models || [];
+						for (var j = 0; j < models.length; j++) {
+							if (models[j] && typeof models[j].name === "string") names.push(models[j].name);
+						}
+					}
+					return names;
+				}
+
+				/** Whether a node could be, or contain, the seat — cheap enough to run per insertion. */
+				function looksLikeSeat(node) {
+					if (node.nodeType !== 1 || !node.matches) return false;
+					if (node.matches("button")) return node.querySelector('[class*="triggerLabel"]') !== null;
+					return node.querySelector('button [class*="triggerLabel"]') !== null;
+				}
+
+				/** Hold the label, and keep watching it: the vendor rewrites its text on every reload. */
+				function watchSeat() {
+					var button = seat();
+					if (button === null) return;
+					hold();
+					if (button === watched) return;
+					watched = button;
+					try {
+						new MutationObserver(function () { hold(); }).observe(button, { childList: true, characterData: true, subtree: true });
+					} catch (e) {}
+				}
+
 				/** The text the seat currently shows (label-span text, or the button's own). */
+
 				function seatText(button) {
 					var node = seatLabel(button);
 					return (node === button ? button.innerText || "" : node.textContent || "").trim();
@@ -190,6 +272,7 @@ window.__ModuleLoader__.load({
 					if (seatText(button) !== label.text) write(seatLabel(button), label.text);
 					button.setAttribute("aria-label", label.aria || (label.adding ? "Add Model" : "Select model, current " + label.text));
 					if (button.getAttribute("title") !== label.text) button.setAttribute("title", label.text);
+					hold();
 				}
 
 				/**
@@ -234,8 +317,10 @@ window.__ModuleLoader__.load({
 						if (!response || !response.ok) return;
 						var catalog = response.value || {};
 						var groups = routableGroups(catalog);
+						catalogNames = catalogModelNames(catalog);
 						paint(desiredLabel(groups, catalog));
 						if (groups.length > 0) rememberPicked(groups);
+						watchSeat();
 					}).catch(function () { /* offline / not paired yet */ });
 				}
 
@@ -349,6 +434,7 @@ window.__ModuleLoader__.load({
 				// stored there is nothing to show, so say "Add Model" at once.
 				function earlyPaint() {
 					try {
+						watchSeat();
 						// A real selection means the harness's own label is correct, so painting over
 						// it here would leave our text in place (paint(null) stops painting, it does
 						// not undo a paint) and the effort suffix would never come back.
@@ -364,6 +450,18 @@ window.__ModuleLoader__.load({
 					earlyPaint();
 					if (++early > 40) clearInterval(earlyTimer);
 				}, 50);
+				// The seat is re-created with the composer — a session switch re-mounts it — and the
+				// vendor rewrites its label whenever its catalog reloads, so watch for both.
+				try {
+					new MutationObserver(function (records) {
+						for (var i = 0; i < records.length; i++) {
+							var added = records[i].addedNodes;
+							for (var j = 0; j < added.length; j++) {
+								if (looksLikeSeat(added[j])) { watchSeat(); return; }
+							}
+						}
+					}).observe(document.documentElement, { childList: true, subtree: true });
+				} catch (e) {}
 
 				check();
 				try { mirror.subscribe(function () { check(); }); } catch (e) {}

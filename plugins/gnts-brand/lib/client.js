@@ -32,6 +32,13 @@ window.__ModuleLoader__.load({
 				var css = ".gnts-boot{position:fixed;inset:0;z-index:2000;height:100%;display:grid;place-items:center;background-color:var(--dsw-alias-bg-base,#151517);transition:opacity .3s var(--ds-ease-in-out)}.gnts-boot-out{display:none!important;opacity:0;pointer-events:none}.gnts-boot-card{display:flex;flex-direction:column;align-items:center;gap:16px}.gnts-boot-wordmark{font-family:'Geist','Geist Sans',-apple-system,BlinkMacSystemFont,sans-serif;font-size:16px;line-height:24px;font-weight:600;letter-spacing:.08em;color:var(--dsw-alias-label-primary)}.gnts-boot-hint{font-family:'Geist','Geist Sans',-apple-system,BlinkMacSystemFont,sans-serif;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}.gnts-boot-spinner{position:relative;width:20px;height:20px;border-radius:50%;border:2px solid var(--dsw-alias-border-l2);animation:gnts-boot-spin .8s linear infinite}.gnts-boot-spinner:after{content:'';position:absolute;inset:-2px;border-radius:inherit;background:conic-gradient(var(--dsw-alias-label-primary) 72deg,transparent 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 0);mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 0)}@keyframes gnts-boot-spin{to{transform:rotate(360deg)}}" +
 					".pXSMma_previewBadge{display:none!important;}" +   // hero "Preview"
 					".pXSMma_fishHitbox{display:none!important;}" +           // hero whale
+					// The hero headline is the vendor's ("Into the Unknown") until our rewrite lands a beat
+					// after the hero mounts — a DOM writer cannot win React's first paint. Hide it until it
+					// is ours: fixHero adds .dsh-harness-tag in the same pass that rewrites the text, so this
+					// stops applying the moment the wordmark is there, and layout is untouched (visibility,
+					// not display). Deliberately the same tolerant selector fixHero uses, so a vendor rename
+					// disables both together instead of leaving an invisible headline behind.
+					"[class*='_titleGroup']>span:first-child:not(.dsh-harness-tag){visibility:hidden!important}" +
 					// Phone widths: the background-jobs chip lives in the session header's action area
 					// (dsh-client-ui-jobs, `QsffPG_root`) and never shrinks, so on a narrow window it
 					// takes the room the chat title needs. Hidden there; the desktop keeps it.
@@ -144,7 +151,9 @@ window.__ModuleLoader__.load({
 				// Unknown" at 26px in the vendor build). Give it the same badge the
 				// sidebar and the boot loader use, so the brand reads as one lockup.
 				function fixHero() {
-					var groups = document.querySelectorAll(".pXSMma_headline .pXSMma_titleGroup");
+					// gnts: keep in step with the visibility rule above — same selector, so either both match
+					// or neither does.
+					var groups = document.querySelectorAll("[class*='_titleGroup']");
 					for (var i = 0; i < groups.length; i++) {
 						var title = groups[i].firstElementChild;
 						if (!title) continue;
@@ -170,12 +179,54 @@ window.__ModuleLoader__.load({
 				}
 				function sync() { fixTitle(); fixTexts(); fixHero(); fixBoot(); }
 
+				// gnts: the hero is not a one-shot render. React re-creates it for every new session and
+				// again during a cold boot's mount churn, so the old 40x250ms window expired long before
+				// a hero opened later. Watch the phase the conversation publishes instead: it is
+				// data-phase="hero" (dsh-client-ui-conversation:16032) and it changes on every hero mount.
+				// Rewrite only while a hero is on screen still carrying the vendor's headline — once it is
+				// ours the test is false, so a branded node is never rewritten, which is what used to flash.
+				function heroUnbranded() {
+					var roots = document.querySelectorAll("[data-phase=\"hero\"]");
+					for (var i = 0; i < roots.length; i++) {
+						if ((roots[i].textContent || "").indexOf("Into the Unknown") !== -1) return true;
+					}
+					return false;
+				}
+				function follow() {
+					fixTitle();
+					if (heroUnbranded()) sync();
+				}
+				// gnts: the hero can arrive as inserted markup with data-phase already set, which produces
+				// no attribute mutation — so the phase observer alone cannot see it.
+				function looksLikeHero(node) {
+					if (node.nodeType !== 1 || !node.matches) return false;
+					if (node.matches("[data-phase]") || node.matches("[class*='_titleGroup']")) return true;
+					return node.querySelector("[class*='_titleGroup']") !== null;
+				}
+
 				if (typeof document !== "undefined") {
 					if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", sync, { once: true });
 					else sync();
 					var tries = 0;
-					var boot = setInterval(function () { sync(); if (++tries > 40) clearInterval(boot); }, 250);
-					// gnts: no repeating rewrite — it made the title and marks flash.
+					var boot = setInterval(function () { follow(); if (++tries > 40) clearInterval(boot); }, 250);
+					// gnts: one watcher per window, however often the profile re-applies the plugin.
+					if (!window.__gntsBrandWatch) {
+						window.__gntsBrandWatch = true;
+						try {
+							new MutationObserver(follow).observe(document.documentElement, { attributes: true, attributeFilter: ["data-phase"], subtree: true });
+						// gnts: and watch insertions, so the rewrite happens in the same task React inserted the
+						// hero in — before the browser paints the vendor's headline.
+						new MutationObserver(function (records) {
+							for (var i = 0; i < records.length; i++) {
+								var added = records[i].addedNodes;
+								for (var j = 0; j < added.length; j++) {
+									if (looksLikeHero(added[j])) { follow(); return; }
+								}
+							}
+						}).observe(document.documentElement, { childList: true, subtree: true });
+						} catch (e) {}
+						setInterval(follow, 250);
+					}
 				}
 			} catch (e) {
 				console.warn("[dsh-brand] apply error:", e);
