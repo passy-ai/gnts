@@ -200,6 +200,9 @@ function createWindow() {
     // our own sidebar and folders packages fixed both, so the clamp is gone.
     minWidth: 360,
     show: false,
+    // The shell's own <title> is the vendor's name. The window is ours, so it is named
+    // here, and the page-title guard below stops the shell from overwriting it.
+    title: 'gnts',
     // The sidebar is deliberately transparent on macOS (the stock rule is
     // background: 0 0), so what shows through it is the window's material. Without
     // vibrancy there is nothing behind it and it renders as flat opaque grey.
@@ -219,6 +222,11 @@ function createWindow() {
   })
 
   created.once('ready-to-show', () => created.show())
+
+  // The harness sets document.title once it loads — its own name — which would replace the
+  // title above in the window menu and in Mission Control. The page keeps its title; the
+  // window keeps ours.
+  created.on('page-title-updated', (event) => event.preventDefault())
 
   // Full screen hides the window controls, and the harness has styles waiting on
   // `[data-fullscreen]` — the brand strip moves left and the leading seat drops its

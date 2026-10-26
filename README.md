@@ -78,3 +78,7 @@ first run the app seeds the harness profile from there, symlinking each plugin i
 
 Every plugin ships its own `cordis.patch.yml`, which is what mounts it; the consolidated view is
 `plugins/cordis.patch.yml`.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

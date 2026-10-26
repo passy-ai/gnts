@@ -1,4 +1,4 @@
-// A logging proxy: sits between the harness and the Passy gateway and prints exactly
+// A logging proxy: sits between the harness and a model gateway and prints exactly
 // what the harness sends and what comes back.
 //
 // When a model call fails, the question is always the same — what request was made,

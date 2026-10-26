@@ -6,6 +6,10 @@ export default {
   appId: 'dev.gnts',
   productName: 'gnts',
   directories: { output: 'dist', buildResources: 'resources' },
+  // Always name the arch. electron-builder drops it for x64, which leaves the Intel
+  // dmg called gnts-<version>.dmg and the Apple silicon one -arm64 — two releases a user
+  // cannot tell apart at a glance.
+  artifactName: '${productName}-${version}-${arch}.${ext}',
   // No `files` array on purpose. A `files` array REPLACES the default, and the
   // default is what walks the production dependency tree — listing globs instead
   // silently dropped transitive packages (cordis-plugin-group among them) and the
