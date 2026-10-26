@@ -89,10 +89,6 @@ const STATE = `(() => {
 		dark: document.documentElement.classList.contains("dark") || document.documentElement.hasAttribute("data-ds-dark-theme"),
 		onboarding: q(".gnts-w-start") ? (q(".gnts-w-startcard h3")?.textContent.trim() ?? "present") : null,
 		sidebarWordmark: txt(".gn-wordmark") || txt("[data-gnts-wordmark]"),
-		walletSection: txt(".gnts-w h3"),
-		walletBalance: txt(".gnts-w-balance"),
-		walletNote: txt(".gnts-w-note"),
-		walletId: txt(".gnts-w-id-text"),
 		modelLabel: txt("[data-gnts-model]") || txt("[class*=model]"),
 		styleTags: document.querySelectorAll("style[data-plugin-css]").length,
 	};

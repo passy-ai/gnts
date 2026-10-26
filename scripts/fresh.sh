@@ -2,7 +2,7 @@
 # A fresh install, without reinstalling.
 #
 # Boots the app against a throwaway data directory: new DSH_HOME, new profile, new
-# session, no pairing cookie, no local storage, no wallet id, no credentials, no
+# session, no pairing cookie, no local storage, no credentials, no
 # gateway state. The real profile is untouched.
 #
 # It also lays down what an installer would — the profile's patch and its plugin
@@ -48,9 +48,8 @@ links=$(ls "$PROFILE/node_modules" 2>/dev/null | grep -c '^gnts-')
 echo "  plugin links installed: $links"
 [ "$links" -lt 5 ] && echo "  ✗ links missing — see /tmp/fresh-install.log"
 
-# 4. nothing else: no credentials, no wallet, no sessions
+# 4. nothing else: no credentials, no sessions
 echo "  credentials: $([ -f "$FRESH_HOME/.credentials.yaml" ] && echo present || echo absent)"
-echo "  wallet id:   (localStorage is empty, so the plugin mints on first open)"
 
 # 5. only one app can hold the harness port, so stop the real one
 pkill -f "gnts-dev.app" 2>/dev/null

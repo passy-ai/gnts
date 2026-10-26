@@ -290,15 +290,7 @@ window.__ModuleLoader__.load({
 					(0, react_jsx_runtime.jsx)("path", { d: "M9.1 11.4l-1 1a2.65 2.65 0 0 1-3.75-3.75l1-1", stroke: "currentColor", strokeWidth: 1.2, strokeLinecap: "round", strokeLinejoin: "round" })
 				]
 			});
-			if (id === "passy-wallet") return (0, react_jsx_runtime.jsx)("svg", {
-				className: SettingsRoot_module_css_default.navIcon,
-				width: 16, height: 16, viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true",
-				children: [
-					(0, react_jsx_runtime.jsx)("path", { d: "M2.5 4.8h11a1 1 0 0 1 1 1v5.4a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V5.8a1 1 0 0 1 1-1Z", stroke: "currentColor", strokeWidth: 1.2, strokeLinecap: "round", strokeLinejoin: "round" }),
-					(0, react_jsx_runtime.jsx)("path", { d: "M10.6 8.5h3.9", stroke: "currentColor", strokeWidth: 1.2, strokeLinecap: "round" })
-				]
-			});
-			if (id === "agent-presets") return (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconAgentPresetOutlineMedium, {
+						if (id === "agent-presets") return (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconAgentPresetOutlineMedium, {
 				className: SettingsRoot_module_css_default.navIcon,
 				size: 16
 			});
