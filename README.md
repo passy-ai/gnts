@@ -36,10 +36,11 @@ composer, or paste a key from any OpenAI-compatible provider.
 
 ## Run from source
 
-Node 22.12 or newer. `npm install` applies the patches in `patches/` through `patch-package`;
-`allowScripts` in `package.json` is what lets npm run the install scripts this project needs
-(Electron's binary, node-pty's native build). Without it — npm 11.19 and later block install
-scripts by default — `npm start` has no Electron to launch.
+Node 22.12 or newer. `npm install` applies the patches in `patches/` through `patch-package`.
+npm 11.19 and later skip dependency install scripts unless `package.json` names them, so
+`allowScripts` lists the ones this project needs — the spawn helper and the native builds.
+Without that list the install still exits 0 and leaves pieces missing at run time. Electron is
+not among them: it fetches its binary the first time it starts.
 
 ```sh
 npm install
