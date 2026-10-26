@@ -4,21 +4,16 @@
 # here, and every package we add is mounted here. Each package also ships its own
 # cordis.patch.yml so installing it mounts itself; this file is the whole picture.
 #
-# Deliberately absent: any Passy provider. The wallet plugin registers that itself at
-# runtime, with the models the gateway serves for THIS wallet — so a fresh install has
-# no Passy provider at all, and none appears until someone chooses a wallet.
+# Deliberately absent: any provider row. A provider exists only once one is added
+# through Autodiscover, so a fresh install has none.
 #
 # Also absent: any agent-default-model row. Naming a provider that nothing has
 # registered yet is fatal, not a preference — the chat entry fails to activate and the
-# composer disappears. The wallet plugin writes the default once the route exists.
+# composer disappears.
 
 # ── disabled: upstream entries our packages replace or exclude ──────────────
 
 - id: ui-settings-models
-  disabled: true
-
-# Offered in the Plugins page as an official extra, off until chosen.
-- id: gnts-passy-wallet
   disabled: true
 
 - id: llm-deepseek

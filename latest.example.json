@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
-  "url": "https://example.com/gnts.dev-0.2.0-arm64.dmg",
-  "notes": "Sidebar fixes, Passy Wallet."
+  "version": "0.1.0",
+  "url": "https://github.com/passy-ai/gnts/releases/download/v0.1.0/gnts-0.1.0-arm64.dmg",
+  "notes": "What changed in this build."
 }

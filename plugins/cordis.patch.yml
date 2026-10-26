@@ -6,7 +6,7 @@
 #
 # Every row names an entry id, never a version — so this file survives an upstream
 # bump on its own. The vendored copies are the other half and are the part that
-# has to be re-applied; see STRATEGY.md.
+# has to be re-applied.
 
 # ── disabled: upstream entries our packages replace or exclude ──────────────
 
@@ -16,10 +16,6 @@
 
 # One option in the Official group, off by default.
 - id: dsh-market
-  disabled: true
-
-# Offered in the Plugins page as an official extra, off until chosen.
-- id: gnts-passy-wallet
   disabled: true
 
 

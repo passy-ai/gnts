@@ -1,36 +1,48 @@
-# gnts.dev
+# gnts
 
-Our desktop layer for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness).
+A desktop shell for the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness).
 
-We do not fork the harness. We depend on the published `@deepseek-ai/dsh` packages, spawn them, and
-show their web UI in a window — then add our own plugins. Same approach as
-[`dataelement/dsh-desktop`](https://github.com/dataelement/dsh-desktop), with our taste and a
-fraction of the code.
-
-See **[PLAN.md](PLAN.md)** for the investigation behind this and what we deliberately left out.
-
-## What is here
+gnts does not fork the harness. It depends on the published `@deepseek-ai/dsh` packages, spawns
+them on a port it reserves, and shows their web UI in a window — then layers its own plugins on
+top: a sidebar and wordmark, a settings shell, Autodiscover for model providers, the model seat in
+the composer, and a boot cover that keeps the window branded while the harness starts.
 
 ```
-src/main/harness.mjs     spawn Harness, reserve its port, wait until it serves   ← the core
+src/main/harness.mjs     spawn the harness, reserve its port, wait until it serves
 src/main/index.mjs       app lifecycle, one window, the directory-picker IPC
-src/main/paths.mjs       DSH_HOME, profile, logs, harness entry resolution
+src/main/paths.mjs       DSH_HOME, the profile, logs, harness entry resolution
 src/preload/index.cjs    the bridges (platform marker, native directory picker)
-resources/               the Node entry, the module fallback, our patch layer
+resources/               the Node entry, the module fallback, the patch layer, the boot cover
+plugins/                 the plugins the profile mounts — the source of truth
 ```
 
-Plain JavaScript, ESM, no bundler and no TypeScript: Electron runs the source directly, so there is
-no build step to break.
+Plain JavaScript, ESM, no bundler and no TypeScript: Electron runs the source directly, so there
+is no build step that can drift from what ships.
 
-## Run it
+## Install
+
+Download the `.dmg` for your Mac from [Releases](../../releases):
+
+| file | machine |
+| --- | --- |
+| `gnts-<version>-arm64.dmg` | Apple silicon |
+| `gnts-<version>-x64.dmg` | Intel |
+
+The builds are **not code-signed or notarized**, so the first launch has to get past Gatekeeper:
+right-click the app → **Open**, or allow it under **System Settings → Privacy & Security**.
+
+gnts ships no model credentials. On first run, add a provider through **Autodiscover** in the
+composer, or paste a key from any OpenAI-compatible provider.
+
+## Run from source
 
 ```sh
 npm install
 npm start
 ```
 
-The window shows a stock Harness from our own pinned `@deepseek-ai/dsh`. To run against another
-installation instead — the CLI kit's, or a checkout — point at its entry:
+`npm install` also applies the patches in `patches/` through `patch-package`. To run against a
+different harness build instead of the pinned dependency:
 
 ```sh
 GNTS_DSH_ENTRY=/path/to/@deepseek-ai/dsh/lib/bin.js npm start
@@ -49,21 +61,20 @@ npm run package:dir      # unpacked, for testing
 ```
 <userData>/harness/          DSH_HOME
   profiles/web/              package.json + cordis.patch.yml
-  sessions/  settings.yaml
-<logs>/harness.log           Harness and desktop diagnostics
+  sessions/                  conversations
+  settings.yaml
+<logs>/harness.log           harness and desktop diagnostics
 ```
 
-## Adding a plugin
+On macOS that is `~/Library/Application Support/gnts.dev/harness` and
+`~/Library/Logs/gnts.dev/harness.log`. Nothing outside those two directories is written.
 
-Our plugins live in `~/.local/dsh-plugins` and are installed into the profile, one at a time:
+## Plugins
 
-```sh
-dsh plugin --profile web add ~/.local/dsh-plugins/<plugin>
-```
+`plugins/` is the source of truth. The build copies it into the app's `Resources/plugins`, and on
+first run the app seeds the harness profile from there, symlinking each plugin into
+`profiles/web/node_modules` — so editing a plugin and rebuilding is all it takes.
+[`plugins/README.md`](plugins/README.md) lists what each one does.
 
-Each plugin ships its own `cordis.patch.yml` and declares it in `dsh.bundle.patch`, so installing is
-all it takes — the profile carries no hand-written mount rows.
-
-Before writing one, read `docs/patch-plugin-contract.md` in the reference clone at
-`~/Projects/dsh-desktop`: slots and your own roots, scoped CSS, no broad global selectors, and no
-DOM surgery on nodes you do not own.
+Every plugin ships its own `cordis.patch.yml`, which is what mounts it; the consolidated view is
+`plugins/cordis.patch.yml`.

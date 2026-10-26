@@ -432,7 +432,7 @@ function startGatewayTunnel(mode) {
   if (mode === 'quick') {
     // Quick mode simply does not pass the token: the stored named-tunnel token is
     // left alone, so switching back is one click (deleting it here would break a
-    // working named tunnel like svlm1.abslm.nl).
+    // working named tunnel like gnts.example.com).
     args.push('--url', 'http://127.0.0.1:8080');
     // Drop a stale quick hostname so nothing (invite links included) can point at
     // the previous run's dead tunnel.
@@ -1062,7 +1062,7 @@ function stripHopTo(headers, target) {
     // upstream below. Origin / sec-fetch-* are browser-origin assertions that
     // describe the public browser->gateway hop; DSH's own loopback authority
     // checks would otherwise reject privileged host APIs (e.g. host.pickDirectory)
-    // with 403 because the browser's origin (https://svlm1.abslm.nl) can never
+    // with 403 because the browser's origin (https://gnts.example.com) can never
     // match a loopback Host. The gateway is the trust boundary, so strip them.
     if (HOP_HEADERS.has(lk)) continue;
     if (lk === 'origin' || lk.startsWith('sec-fetch-')) continue;
