@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 
 /** Packaging. Two targets: macOS (dmg) and Windows (nsis), matching what we ship. */
@@ -41,6 +42,17 @@ export default {
   ],
   asar: true,
   npmRebuild: false,
+  // An unsigned bundle whose inner binaries are linker-signed fails Gatekeeper's integrity
+  // check, and macOS reports the copied app as damaged rather than unidentified. An ad-hoc
+  // signature over the whole bundle fixes that: `codesign --verify --deep --strict` passes and
+  // macOS falls back to the ordinary "unidentified developer" dialog, where right-click -> Open
+  // works. (A Developer ID and notarization would remove the dialog entirely; this is the
+  // honest minimum for a build nobody signs.)
+  afterPack: async (context) => {
+    if (context.electronPlatformName !== 'darwin') return
+    const app = join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`)
+    execFileSync('codesign', ['--force', '--deep', '--sign', '-', app], { stdio: 'inherit' })
+  },
   mac: {
     // The icon we generated for the earlier setup: black field, white gnts.dev
     // wordmark in Geist, sharp corners.
