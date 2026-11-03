@@ -1,0 +1,42 @@
+diff --git a/node_modules/@deepseek-ai/dsh-llm-pi-ai/lib/index.js b/node_modules/@deepseek-ai/dsh-llm-pi-ai/lib/index.js
+index 0c74b3a..4465a59 100644
+--- a/node_modules/@deepseek-ai/dsh-llm-pi-ai/lib/index.js
++++ b/node_modules/@deepseek-ai/dsh-llm-pi-ai/lib/index.js
+@@ -2230,6 +2230,19 @@ async function readBounded(response, url) {
+ * a working endpoint's catalog. Missing names fall back to the adopted id so
+ * the Web form receives a complete human-readable row.
+ */
++/**
++* Read the modalities a model listing advertises, in the vocabulary model `input` accepts.
++* @param candidates - the shapes endpoints use: ours, OpenRouter's, and a bare field.
++* @returns the declared modalities, or undefined when the listing declares none.
++*/
++function listedModalities(...candidates) {
++	for (const candidate of candidates) {
++		if (!Array.isArray(candidate)) continue;
++		const known = [...new Set(candidate.filter((modality) => typeof modality === "string" && MODALITIES.includes(modality)))];
++		if (known.length > 0) return known;
++	}
++	return void 0;
++}
+ function readListing(body) {
+ 	const listing = body;
+ 	const data = listing?.data;
+@@ -2251,11 +2264,16 @@ function readListing(body) {
+ 		const name = label(entry?.name, entry?.display_name, entry?.displayName) ?? id;
+ 		const contextWindow = capacity(entry?.contextWindow, entry?.context_window, entry?.context_length, entry?.max_input_tokens, entry?.limit?.context);
+ 		const maxTokens = capacity(entry?.maxOutputTokens, entry?.max_output_tokens, entry?.maxTokens, entry?.max_tokens, entry?.limit?.output, entry?.top_provider?.max_completion_tokens);
++		// A listing that advertises modalities is the only place an endpoint says a
++		// model takes images; without this the model is discovered as text-only and
++		// the composer will not attach one to it.
++		const inputModalities = listedModalities(entry?.capabilities?.input_modalities, entry?.architecture?.input_modalities, entry?.input_modalities);
+ 		models.push({
+ 			id,
+ 			name,
+ 			...contextWindow === void 0 ? {} : { contextWindow },
+-			...maxTokens === void 0 ? {} : { maxTokens }
++			...maxTokens === void 0 ? {} : { maxTokens },
++			...inputModalities === void 0 ? {} : { inputModalities }
+ 		});
+ 	}
+ 	return models;

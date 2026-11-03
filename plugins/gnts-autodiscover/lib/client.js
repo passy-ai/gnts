@@ -124,6 +124,27 @@ window.__ModuleLoader__.load({
 			if (!REASONING.test(hay)) return {};
 			return { reasoningEfforts: { low: "low", medium: "medium", high: "high" } };
 		}
+		// gnts: `input` is what makes an image attachable — the harness reads it, and a
+		// model saved without it stays text-only however capable its endpoint says it
+		// is. Discovery reports the endpoint's own modalities, so carry those instead of
+		// guessing from the name. Text-only is the schema default, so only images are
+		// spelled out.
+		function inputFor(model) {
+			var modalities = model !== null && typeof model === "object" ? model.inputModalities : null;
+			if (!Array.isArray(modalities)) return {};
+			var known = modalities.filter(function (m) { return m === "text" || m === "image"; });
+			return known.indexOf("image") === -1 ? {} : { input: known };
+		}
+		// One saved entry for a model: what the owner set by hand wins, and a model
+		// saved before discovery reported modalities gains them on the next toggle.
+		function modelEntry(model, prev) {
+			var add = inputFor(model);
+			if (prev && typeof prev === "object") {
+				var declared = Array.isArray(prev.input) ? prev.input : [];
+				return add.input && declared.indexOf("image") === -1 ? { ...prev, input: add.input } : prev;
+			}
+			return { id: model.id, ...(model.name ? { name: model.name } : {}), ...(model.contextWindow ? { contextWindow: model.contextWindow } : {}), ...reasoningFor(model), ...add };
+		}
 				// provider list cached across section mounts so switching tabs never
 				// reloads or flashes (null = never loaded yet)
 				var providerCache = { list: null };
@@ -544,7 +565,10 @@ var tag = document.createElement("style");
 					var MULTIMODAL = /(vision|claude|gpt-4|gpt-5|o[34]-|gemini|grok-[2-9]|qwen.*vl|llava|pixtral|omni|glm-4v|internvl|cogvlm)/i;
 
 					function looksMultimodal(model) {
-						return model !== null && typeof model === "object" && MULTIMODAL.test(String(model.id || "") + " " + String(model.name || ""));
+						if (model === null || typeof model !== "object") return false;
+						// What the endpoint advertises beats any guess from the name.
+						if (Array.isArray(model.inputModalities)) return model.inputModalities.indexOf("image") !== -1;
+						return MULTIMODAL.test(String(model.id || "") + " " + String(model.name || ""));
 					}
 					function discover(url, key, path, onlyApi) {
 						setBusy(true); setErr(null);
@@ -579,7 +603,7 @@ var tag = document.createElement("style");
 						var next = (entry && entry.models ? entry.models : []).filter(function (m) { return m.id !== model.id; });
 						if (on) {
 							var prev = (entry && entry.models ? entry.models : []).filter(function (m) { return m.id === model.id; })[0];
-							next.push(prev || { id: model.id, ...(model.name ? { name: model.name } : {}), ...(model.contextWindow ? { contextWindow: model.contextWindow } : {}), ...reasoningFor(model) });
+							next.push(modelEntry(model, prev));
 						}
 						saveModels(next);
 					}
@@ -587,7 +611,7 @@ var tag = document.createElement("style");
 						var base = (entry && entry.models ? entry.models : []).slice();
 						if (on && disc) {
 							disc.forEach(function (m) {
-								if (!base.some(function (x) { return x.id === m.id; })) base.push({ id: m.id });
+								if (!base.some(function (x) { return x.id === m.id; })) base.push(modelEntry(m));
 							});
 						} else {
 							base = base.filter(function (x) { return !disc || !disc.some(function (m) { return m.id === x.id; }); });
@@ -813,7 +837,7 @@ var tag = document.createElement("style");
 						if (!disc || disc.length === 0 || busy) return;
 						setAdding(true);
 						var chosenModels = disc.filter(function (m) { return chosenMap && chosenMap[m.id]; })
-							.map(function (m) { return { id: m.id, ...(m.name ? { name: m.name } : {}), ...(m.contextWindow ? { contextWindow: m.contextWindow } : {}), ...reasoningFor(m) }; });
+							.map(function (m) { return modelEntry(m); });
 						var keyRef = deriveKeyRef(route);
 						var profile = {};
 						if (name.trim() && name.trim() !== route) profile.displayName = name.trim();
